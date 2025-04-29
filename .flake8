@@ -1,0 +1,33 @@
+[flake8]
+max-line-length = 120
+exclude = .git,
+        .github,
+        .mypy_cache,
+        .pytest_cache,
+        .venv,
+        .vs,
+        .vscode,
+        docs,
+        examples,
+        htmlcov,
+        logs,
+        .egg-info,
+        tool_chain,
+        watchdog,
+        resources,
+        venv,
+        qmbt/resources.py,
+        qmbt/package/interaction/organize.py
+ignore = 
+        E501,
+        W291,
+        E203,
+        E402,
+        W503,
+        F401,
+; E501, line too long, handled by black (120)
+; W291, trailing whitespace detected in comment and file headers
+; W503, line break before binary operator, black formatting
+; E203, whitespace before ':', black formatting
+; E402, module level import not at top of file, lazy loading modules and applications
+; F401, imported but unused

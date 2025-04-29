@@ -1,0 +1,48 @@
+[project]
+name = "app"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "matplotlib>=3.10.1",
+    "numpy>=2.2.5",
+    "pandas>=2.2.3",
+    "simpy>=4.1.1",
+]
+
+[dependency-groups]
+dev = [
+    "autoflake>=2.3.1",
+    "black>=25.1.0",
+    "cython>=3.0.12",
+    "flake8>=7.2.0",
+    "ipykernel>=6.29.5",
+    "isort>=6.0.1",
+    "mypy>=1.15.0",
+    "pylint>=3.3.6",
+    "types-python-dateutil>=2.9.0.20241206",
+]
+
+[tool.black]
+line-length = 120
+extend-exclude = '''
+/(
+    | .github\/
+    | .ipynb_checkpoints\/
+    | .mypy_cache\/
+    | .pytest_cache\/
+    | .tox\/
+    | .venv\/
+    | .vscode\/
+    | build\/
+    | dist\/
+    | docs\/
+    | examples\/
+    | log\/
+    | QMBT.egg-info\/
+    | resources\/
+    | scripts\/
+    | QMBT.egg-info\/
+/)
+'''

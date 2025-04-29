@@ -17,7 +17,7 @@ class Repairman(simpy.Resource):
         self.downtime = downtime
 
         self.task_id = shortuuid.uuid()
-        self.task_name = f"Task Repair"
+        self.task_name = "Task Repair"
         EventHandler.create_task(self.env.task_logs, self.task_id, self.task_name)
 
     def start_repair(self, machine: Machine):

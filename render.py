@@ -1,5 +1,7 @@
 from __future__ import annotations
+
 from typing import Any, cast
+import json
 
 from matplotlib import pyplot as plt, ticker, backend_bases
 from matplotlib.axes import Axes
@@ -7,7 +9,6 @@ from matplotlib.collections import PathCollection, PolyCollection
 from matplotlib.figure import Figure
 from matplotlib.widgets import Slider
 from mpl_interactions import zoom_factory
-import json
 
 
 class ScrollSlider(Slider):
@@ -52,19 +53,16 @@ class Annotater:
             "motion_notify_event", self
         )
 
-    # fmt:off
-    def __call__(
-        self, event: backend_bases.Event
-        ) -> Any:  # fmt:on
+    def __call__(self, event: backend_bases.Event) -> Any:
 
-        ### inline function ---
+        # inline function ---
 
         def annotate(
             container: PolyCollection | PathCollection, event: backend_bases.MouseEvent
         ):
             if isinstance(container, PolyCollection):
                 self.annotater.xy = event.xdata, event.ydata  # type:ignore
-                box = container.get_paths()[0].get_extents()
+                # box = container.get_paths()[0].get_extents()
                 # text = f"duration:{box.x1 - box.x0:.2f} {json.dumps(self.collection_data.get(container, {}))}"
                 text = f"{json.dumps(self.collection_data.get(container, {}).get('event_name', {}))}"
                 self.annotater.set_text(text)
@@ -74,7 +72,7 @@ class Annotater:
 
             if isinstance(container, PathCollection):
                 self.annotater.xy = event.xdata, event.ydata  # type:ignore
-                box = container.get_paths()[0].get_extents()
+                # box = container.get_paths()[0].get_extents()
                 # text = f"duration:{box.x1 - box.x0:.2f} {json.dumps(self.collection_data.get(container, {}))}"
                 text = f"{json.dumps(self.collection_data.get(container, {}).get('event_name', {}))}"
                 self.annotater.set_text(text)
@@ -82,7 +80,7 @@ class Annotater:
                     bbox.set_alpha(0.5)
                 return
 
-        ### inline function ---
+        # inline function ---
 
         if isinstance(event, backend_bases.MouseEvent):
             for container in self.collections:
@@ -172,7 +170,7 @@ if __name__ == "__main__":
 
     fig, ax = plt.subplots()
 
-    render = Render(ax, r"C:\Users\ansh1\codebase\iit-mba-941\test\logs.json")
+    render = Render(ax, r"./logs/logs.json")
     scroller = ScrollSlider.from_ax_fig(fig, ax)
     annotater = Annotater(
         ax, render.bars_list + render.markers_list, render.map_collection_id_data
@@ -181,5 +179,6 @@ if __name__ == "__main__":
 
     ax.set_xlim(0, 0 + 100)
     fig.canvas.draw_idle()
+    # fig.savefig("output_plot.png", dpi=300, bbox_inches="tight")
 
     plt.show()

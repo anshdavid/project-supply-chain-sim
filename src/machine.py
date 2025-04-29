@@ -17,8 +17,7 @@ class Machine:
         return 1 / random.expovariate(mean_time_to_failure)
 
     # fmt:off
-    def __init__(
-        self, name: str, env: Environment, mean_operation_time: float=20., sigma_operation: float=2., mean_time_to_failure: float=100., repair_callback:Callable = lambda x: None):  # fmt:on
+    def __init__(self, name: str, env: Environment, mean_operation_time: float = 20., sigma_operation: float = 2., mean_time_to_failure: float = 100., repair_callback: Callable = lambda x: None):  # fmt:on
 
         self.name: str = name
         self.env: Environment = env

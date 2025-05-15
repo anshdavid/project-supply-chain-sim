@@ -1,12 +1,45 @@
 import random
-from typing import Callable
+from typing import Callable, Literal
+
+from pydantic import BaseModel, Field
+
 from src.environment import Environment, EventHandler, EventLog
 from src import shortuuid
 
 
+class MachineState(BaseModel):
+
+    name: str
+    state: Literal["idle", "working", "broken", "waiting_repair"] = Field(
+        ..., description="Current operational state: idle, working, broken, waiting_repair"
+    )
+    mean_operation_time: float = Field(..., description="Mean time per part")
+    sigma: float = Field(..., description="Standard deviation in operation time")
+    mtbf: float = Field(..., description="Mean Time Between Failures")
+    failure_event_due: float | None = Field(None, description="Scheduled time of next failure (if known)")
+
+    part_id: str | None = Field(None, description="ID of the part currently being produced")
+    acquire_resource: function | None = Field(None, description="Identifier or name of the resource pool")
+    part_requested_queue: str | None = Field(None, description="Identifier or name of the shared queue source")
+    part_produced_queue: int = Field(0, description="Total parts successfully produced by this machine")
+
+
 class Machine:
     @staticmethod
-    def time_per_part(mean_operation_time: float, sigma_operation: float):
+    def time_per_part(mean_operation_time: float, sigma_operation: float, fixed_time=False):
+        """
+        Calculates the operation time per part, either as a fixed value or sampled from a normal distribution.
+        Args:
+            mean_operation_time (float): The mean operation time for producing a part.
+            sigma_operation (float): The standard deviation of the operation time.
+            fixed_time (bool, optional): If True, returns the mean operation time as a fixed value. If False, samples from a normal distribution. Defaults to False.
+        Returns:
+            float: The operation time for a part. If sampling, ensures the value is positive.
+        """
+
+        if fixed_time:
+            return mean_operation_time
+
         t = random.normalvariate(mean_operation_time, sigma_operation)
         while t <= 0:
             t = random.normalvariate(mean_operation_time, sigma_operation)
@@ -14,6 +47,21 @@ class Machine:
 
     @staticmethod
     def ttf(mean_time_to_failure: float):
+        """
+        Calculates the time to failure based on the mean time to failure (MTTF) using an exponential distribution.
+
+        Args:
+            mean_time_to_failure (float): The mean time to failure (MTTF) parameter for the exponential distribution.
+
+        Returns:
+            float: A randomly generated time to failure.
+
+        Raises:
+            ValueError: If mean_time_to_failure is not positive.
+
+        Note:
+            This function requires the 'random' module to be imported.
+        """
         return 1 / random.expovariate(mean_time_to_failure)
 
     # fmt:off

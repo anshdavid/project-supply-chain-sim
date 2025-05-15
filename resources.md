@@ -33,3 +33,10 @@
 - https://www.youtube.com/watch?v=BmCnKedsZcs
 - https://www.youtube.com/watch?v=ZAU4YQMakUY
 - https://www.youtube.com/watch?v=XNi6ICftl9Y
+
+### Code
+
+- https://github.com/arpitamangal/supply-chain-bullwhip-effect
+- https://github.com/KevinFasusi/supplychainpy
+- https://github.com/KevinFasusi/supplychainpy_notebooks
+- https://github.com/oalotaik/supply_chains_optimization/tree/master

@@ -9,6 +9,7 @@ dependencies = [
     "mpl-interactions>=0.24.2",
     "numpy>=2.2.5",
     "pandas>=2.2.3",
+    "pydantic>=2.11.4",
     "simpy>=4.1.1",
 ]
 

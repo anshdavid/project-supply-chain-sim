@@ -39,9 +39,9 @@ RUN uv venv /.venv
 
 RUN echo 'source /.venv/bin/activate' >> ~/.bashrc
 
-# RUN echo 'VIRTUAL_ENV=/.venv' >> ~/.bashrc
+RUN echo 'export VIRTUAL_ENV=/.venv' >> ~/.bashrc
 
-RUN echo 'UV_PROJECT_ENVIRONMENT=/.venv' >> ~/.bashrc
+RUN echo 'export UV_PROJECT_ENVIRONMENT=/.venv' >> ~/.bashrc
 
 # RUN source /.venv/bin/activate
 

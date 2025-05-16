@@ -1,48 +1,41 @@
-import simpy
-from src.machine import Machine
-from src.environment import Environment, EventHandler, EventLog
-from src import shortuuid
+from __future__ import annotations
+
+from pydantic import BaseModel, Field
+from src.machine import QMachine
+from src.environment import QEnvironment
 
 
-class Repairman(simpy.Resource):
+class QRepairman:
 
-    # fmt:off
-    def __init__(
-        self, env: Environment, capacity: int = 3, time_to_repair: float = 30, 
-        downtime: float = 1.5
-    ):  # fmt:on
-        super().__init__(env, capacity)
-        self.env = env
-        self.time_to_repair = time_to_repair
-        self.downtime = downtime
+    class QRepairmanSchema(BaseModel):
+        name: str = Field(description="Name of the repairman")
+        time_to_repair: float = Field(description="Time to repair a machine", gt=0, le=1000)
+        downtime: float = Field(description="Downtime for a repairman", gt=0, le=1000)
 
-        self.task_id = shortuuid.uuid()
-        self.task_name = "Task Repair"
-        EventHandler.create_task(self.env.task_logs, self.task_id, self.task_name)
+    class QRepairmanLog(BaseModel):
+        timestamp: float
+        repairman_name: str = Field(description="Name of the repairman")
+        machine_name: str = Field(description="Name of the machine")
+        state: str = Field(description="State of the repairman")
 
-    def start_repair(self, machine: Machine):
-        with self.request() as req:
-            yield req
-            EventHandler.add_event_to_task(
-                self.env.task_logs,
-                self.task_id,
-                EventLog(
-                    shortuuid.uuid(),
-                    f"machine-{machine.name}-repair-start",
-                    "episode",
-                    self.env.now,
-                ),
-            )
-            yield self.env.timeout(self.time_to_repair)
-            EventHandler.add_event_to_task(
-                self.env.task_logs,
-                self.task_id,
-                EventLog(
-                    shortuuid.uuid(),
-                    f"machine-{machine.name}-repaired",
-                    "episode",
-                    self.env.now,
-                ),
-            )
-            machine.machine_reset_start()
-            yield self.env.timeout(self.downtime)
+    class QRepairmanState(BaseModel):
+        name: str = Field(description="Name of the repairman")
+        time_to_repair: float = Field(description="Time to repair a machine", gt=0, le=1000)
+        downtime: float = Field(description="Downtime for a repairman", gt=0, le=1000)
+
+        logs: list[QRepairman.QRepairmanLog] = []
+
+    def __init__(self, name: str, time_to_repair: float = 30, downtime: float = 1.5):
+
+        self.repairman_state: QRepairman.QRepairmanState = QRepairman.QRepairmanState(
+            name=name,
+            time_to_repair=time_to_repair,
+            downtime=downtime,
+        )
+
+    def start_repair(self, env: QEnvironment, machine: QMachine):
+        if machine.machine_state.is_broken():
+            machine.machine_state.set_repairing()
+            yield env.timeout(self.repairman_state.time_to_repair)
+            machine.machine_state.set_idle()
+            machine.restart()

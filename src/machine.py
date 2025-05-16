@@ -1,167 +1,151 @@
+from __future__ import annotations
+
 import random
-from typing import Callable, Literal
+from typing import Literal, TYPE_CHECKING
+
 
 from pydantic import BaseModel, Field
 
-from src.environment import Environment, EventHandler, EventLog
+from src.environment import QEnvironment
 from src import shortuuid
 
-
-class MachineState(BaseModel):
-
-    name: str
-    state: Literal["idle", "working", "broken", "waiting_repair"] = Field(
-        ..., description="Current operational state: idle, working, broken, waiting_repair"
-    )
-    mean_operation_time: float = Field(..., description="Mean time per part")
-    sigma: float = Field(..., description="Standard deviation in operation time")
-    mtbf: float = Field(..., description="Mean Time Between Failures")
-    failure_event_due: float | None = Field(None, description="Scheduled time of next failure (if known)")
-
-    part_id: str | None = Field(None, description="ID of the part currently being produced")
-    acquire_resource: function | None = Field(None, description="Identifier or name of the resource pool")
-    part_requested_queue: str | None = Field(None, description="Identifier or name of the shared queue source")
-    part_produced_queue: int = Field(0, description="Total parts successfully produced by this machine")
+if TYPE_CHECKING:
+    from src.factory import QFactory
 
 
-class Machine:
-    @staticmethod
-    def time_per_part(mean_operation_time: float, sigma_operation: float, fixed_time=False):
-        """
-        Calculates the operation time per part, either as a fixed value or sampled from a normal distribution.
-        Args:
-            mean_operation_time (float): The mean operation time for producing a part.
-            sigma_operation (float): The standard deviation of the operation time.
-            fixed_time (bool, optional): If True, returns the mean operation time as a fixed value. If False, samples from a normal distribution. Defaults to False.
-        Returns:
-            float: The operation time for a part. If sampling, ensures the value is positive.
-        """
+def time_per_part(mean_operation_time: float, sigma_operation: float, fixed_time=False):
+    """
+    Calculates the operation time per part, either as a fixed value or sampled from a normal distribution.
+    Args:
+        mean_operation_time (float): The mean operation time for producing a part.
+        sigma_operation (float): The standard deviation of the operation time.
+        fixed_time (bool, optional): If True, returns the mean operation time as a fixed value. If False, samples from a normal distribution. Defaults to False.
+    Returns:
+        float: The operation time for a part. If sampling, ensures the value is positive.
+    """
 
-        if fixed_time:
-            return mean_operation_time
+    if fixed_time:
+        return mean_operation_time
 
+    t = random.normalvariate(mean_operation_time, sigma_operation)
+    while t <= 0:
         t = random.normalvariate(mean_operation_time, sigma_operation)
-        while t <= 0:
-            t = random.normalvariate(mean_operation_time, sigma_operation)
-        return t
+    return t
 
-    @staticmethod
-    def ttf(mean_time_to_failure: float):
-        """
-        Calculates the time to failure based on the mean time to failure (MTTF) using an exponential distribution.
 
-        Args:
-            mean_time_to_failure (float): The mean time to failure (MTTF) parameter for the exponential distribution.
+def mean_time_to_failure(mttf: float):
+    """
+    Calculates the time to failure based on the mean time to failure (MTTF) using an exponential distribution.
 
-        Returns:
-            float: A randomly generated time to failure.
+    Args:
+        mean_time_to_failure (float): The mean time to failure (MTTF) parameter for the exponential distribution.
 
-        Raises:
-            ValueError: If mean_time_to_failure is not positive.
+    Returns:
+        float: A randomly generated time to failure.
 
-        Note:
-            This function requires the 'random' module to be imported.
-        """
-        return 1 / random.expovariate(mean_time_to_failure)
+    Raises:
+        ValueError: If mean_time_to_failure is not positive.
+
+    Note:
+        This function requires the 'random' module to be imported.
+    """
+    return random.expovariate(1 / mttf)
+
+
+class QMachine:
+    class QMachineSchema(BaseModel):
+        name: str = Field(description="Name of the machine")
+        mean_operation_time: float = Field(description="Mean time per part")
+        sigma: float = Field(..., description="Standard deviation in operation time")
+        mttf: float = Field(description="Mean Time to Failures")
+
+    class QMachineLog(BaseModel):
+        timestamp: float
+
+    class QMachineState(BaseModel):
+        name: str
+        state: Literal["idle", "working", "broken", "repair"] = Field(
+            description="Current operational state: idle, working, broken"
+        )
+        mean_operation_time: float = Field(description="Mean time per part")
+        sigma: float = Field(..., description="Standard deviation in operation time")
+        mttf: float = Field(description="Mean Time to Failures")
+        parts_made: int = Field(default=0, description="Total parts produced by the machine")
+
+        logs: list[QMachine.QMachineLog] = []
+
+        def set_idle(self):
+            self.state = "idle"
+
+        def is_idle(self) -> bool:
+            return self.state == "idle"
+
+        def set_working(self):
+            self.state = "working"
+
+        def is_working(self) -> bool:
+            return self.state == "working"
+
+        def set_broken(self):
+            self.state = "broken"
+
+        def is_broken(self) -> bool:
+            return self.state == "broken"
+
+        def set_repairing(self):
+            self.state = "repair"
+
+        def is_repairing(self) -> bool:
+            return self.state == "repair"
+
+    @classmethod
+    def from_config(cls, env: QEnvironment, factory: "QFactory", config: QMachineSchema):
+        # fmt:off
+        return cls(
+            name=config.name, factory=factory, env=env, mean_operation_time=config.mean_operation_time, sigma_operation=config.sigma, mttf=config.mttf)
+        # fmt:on
 
     # fmt:off
-    def __init__(self, name: str, env: Environment, mean_operation_time: float = 20., sigma_operation: float = 2., mean_time_to_failure: float = 100., repair_callback: Callable = lambda x: None):  # fmt:on
+    def __init__(
+        self, name: str, factory: QFactory, env: QEnvironment, mean_operation_time: float, sigma_operation: float, mttf: float
+    ):  # fmt:on
 
-        self.name: str = name
-        self.env: Environment = env
-        self.mean_operation_time: float = mean_operation_time
-        self.sigma_operation: float = sigma_operation
-        self.mean_time_to_failure: float = mean_time_to_failure
+        self.factory: QFactory = factory
+        self.env: QEnvironment = env
 
-        self.repair_callback: Callable = repair_callback
+        # fmt:off
+        self.machine_state: QMachine.QMachineState = QMachine.QMachineState(
+            name=name, state="idle", mean_operation_time=mean_operation_time, sigma=sigma_operation, mttf=mttf, parts_made=0)
+        # fmt:on
 
-        self.task_id = shortuuid.uuid()
-        self.task_name = f"Task Machine {self.name}"
-        EventHandler.create_task(self.env.task_logs, self.task_id, self.task_name)
-
-        self.parts_produced: int = 0
-        self.active_event_id: str = "not initialized"
-        self.event_failure = self.env.timeout(0)
+        self.machine_state.set_idle()
         self.event_production = self.env.timeout(0)
+        self.event_failure = self.env.timeout(0)
 
-        self.create_task(init=True)
+        # self.env.process(self.start())
 
-    def produce(self):
+    def start(self):
+        self.event_production = self.env.timeout(
+            time_per_part(self.machine_state.mean_operation_time, self.machine_state.sigma)
+        )
+
+        self.event_failure = self.env.timeout(mean_time_to_failure(self.machine_state.mttf))
+
         while True:
-            self.create_task()
+            if self.machine_state.is_idle():
+                self.machine_state.set_working()
+                yield self.event_failure | self.event_production
 
-            yield self.event_failure | self.event_production
+                if self.event_production.processed:
+                    self.machine_state.set_idle()
+                    self.machine_state.parts_made += 1
+                    self.event_production = self.env.timeout(
+                        time_per_part(self.machine_state.mean_operation_time, self.machine_state.sigma)
+                    )
 
-            if self.event_failure.processed:
-                EventHandler.update_event(
-                    self.env.task_logs,
-                    self.task_id,
-                    self.active_event_id,
-                    event_end_timestamp=self.env.now,
-                )
-                EventHandler.add_event_to_task(
-                    self.env.task_logs,
-                    self.task_id,
-                    EventLog(
-                        shortuuid.uuid(),
-                        "break-down-repair-requested",
-                        "episode",
-                        self.env.now,
-                    ),
-                )
-                self.repair_callback(self)
-                return
+                elif self.event_failure.processed:
+                    self.machine_state.set_broken()
+                    return
 
-            if self.event_production.processed:
-                self.complete_task()
-                self.create_task()
-
-    def create_task(self, init: bool = False):
-        if init or self.active_event_completed:
-            self.active_event_id: str = shortuuid.uuid()
-
-            p_ = self.time_per_part(self.mean_operation_time, self.sigma_operation)
-            self.event_production = self.env.timeout(p_)
-
-            if init:
-                f_ = self.ttf(self.mean_time_to_failure)
-                self.event_failure = self.env.timeout(f_)
-
-            EventHandler.add_event_to_task(
-                self.env.task_logs,
-                self.task_id,
-                EventLog(
-                    self.active_event_id,
-                    f"production-start-{self.parts_produced}",
-                    "job",
-                    self.env.now,
-                    p_,
-                ),
-            )
-
-            self.active_event_completed: bool = False
-
-    def complete_task(self):
-        self.parts_produced += 1
-        self.active_event_completed = True
-        EventHandler.update_event(
-            self.env.task_logs,
-            self.task_id,
-            self.active_event_id,
-            event_end_timestamp=self.env.now,
-        )
-
-    def machine_reset(self):
-        EventHandler.add_event_to_task(
-            self.env.task_logs,
-            self.task_id,
-            EventLog(shortuuid.uuid(), "machine-reset", "episode", self.env.now),
-        )
-        self.create_task(init=True)
-
-    def machine_start(self):
-        self.env.process(self.produce())
-
-    def machine_reset_start(self):
-        self.machine_reset()
-        self.machine_start()
+    def restart(self):
+        self.env.process(self.start())

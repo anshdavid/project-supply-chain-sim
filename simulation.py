@@ -1,7 +1,7 @@
 import json
 import random
-from src.manufacturer import Factory
-from src.environment import Environment
+from src.factory import Factory
+from src.environment import QEnvironment
 from src.schema import EnhancedJSONEncoder
 
 
@@ -16,7 +16,7 @@ def test_machine():
 
     print("=== machine: 3, repairman: 1")
 
-    env = Environment()
+    env = QEnvironment()
     warehouse = Factory(env, repairman=1)
     env.process(warehouse.initialize())
     env.run(1000)
@@ -31,7 +31,7 @@ def test_machine():
 
     print("=== machine: 3, repairman: 2")
 
-    env = Environment()
+    env = QEnvironment()
     warehouse = Factory(env, repairman=2)
     env.process(warehouse.initialize())
     env.run(1000)
@@ -46,7 +46,7 @@ def test_machine():
 
     print("=== machine: 3, repairman: 3")
 
-    env = Environment()
+    env = QEnvironment()
     warehouse = Factory(env, repairman=3)
     env.process(warehouse.initialize())
     env.run(1000)

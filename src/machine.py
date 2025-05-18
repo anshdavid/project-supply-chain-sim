@@ -344,6 +344,18 @@ class QMachine:
             """
             return self._environment
 
+        def add_log(self, timestamp: float, message: str, data: dict = {}):
+            """
+            Adds a log entry to the machine's logs.
+
+            Args:
+                timestamp (float): The time at which the log entry is created.
+                message (str): The log message.
+                data (dict, optional): Additional data related to the log entry. Defaults to an empty dictionary.
+            """
+            log_entry = QMachine.QMachineLog(timestamp=timestamp, message=message, data=data)
+            self.logs.append(log_entry)
+
     @classmethod
     def from_config(cls, env: QEnvironment, config: QMachineConfig):
         """
@@ -438,17 +450,3 @@ class QMachine:
         else:
             if not self.machine_state.is_state("idle"):
                 self.machine_state.set_state("idle")
-
-    def repair(self, timeout: float):
-        """
-        Initiates the repair process for the machine by setting its state to "repair",
-        waiting for the specified timeout duration, and then restarting the machine.
-        Args:
-            timeout (float): The amount of time (in simulation units) to wait while the machine is being repaired.
-        Yields:
-            simpy.events.Timeout: An event representing the passage of time during the repair process.
-        """
-        self.machine_state.set_state("repair")
-        yield self.machine_state.get_environment().timeout(timeout)
-        self.machine_state.set_state("idle")
-        self.restart()

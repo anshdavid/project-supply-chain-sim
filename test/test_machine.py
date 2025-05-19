@@ -67,9 +67,9 @@ class TestQMachine(unittest.TestCase):
 
     def test_calculate_timeouts(self):
         machine, _ = make_machine()
-        ttf = machine.machine_state.calculate_timeout_to_failure(fixed_time=True)
+        ttf = machine.machine_state.timeout_to_failure(fixed_time=True)
         self.assertEqual(ttf, 100)
-        ttp = machine.machine_state.calculate_timeout_to_produce(fixed_time=True)
+        ttp = machine.machine_state.timeout_to_produce(fixed_time=True)
         self.assertEqual(ttp, 10)
 
     # def test_produce_and_failure(self):

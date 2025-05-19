@@ -39,48 +39,6 @@ if TYPE_CHECKING:
     from src.factory import QFactory
 
 
-def time_per_part(mean_operation_time: float, sigma_operation: float, fixed_time=False):
-    """
-    Calculates the operation time per part, either as a fixed value or sampled from a normal distribution.
-    Args:
-        mean_operation_time (float): The mean operation time for producing a part.
-        sigma_operation (float): The standard deviation of the operation time.
-        fixed_time (bool, optional): If True, returns the mean operation time as a fixed value. If False, samples from a normal distribution. Defaults to False.
-    Returns:
-        float: The operation time for a part. If sampling, ensures the value is positive.
-    """
-
-    if fixed_time:
-        return mean_operation_time
-
-    t = random.normalvariate(mean_operation_time, sigma_operation)
-    while t <= 0:
-        t = random.normalvariate(mean_operation_time, sigma_operation)
-    return t
-
-
-def mean_time_to_failure(mttf: float, fixed_time=False):
-    """
-    Calculates the mean time to failure (MTTF) for a system or component.
-    If `fixed_time` is True, returns the provided `mttf` value directly.
-    If `fixed_time` is False, returns a random value sampled from an exponential distribution
-    with the specified mean time to failure.
-    Args:
-        mttf (float): The mean time to failure.
-        fixed_time (bool, optional): If True, return the fixed `mttf` value.
-            If False, sample from an exponential distribution. Defaults to False.
-    Returns:
-        float: The time to failure, either as a fixed value or a random sample.
-    Raises:
-        ZeroDivisionError: If `mttf` is zero when `fixed_time` is False.
-    """
-
-    if fixed_time:
-        return mttf
-
-    return random.expovariate(1 / mttf)
-
-
 class QMachine:
     """
     QMachine simulates a production machine within a factory environment, tracking its operational state, production statistics, and logs.
@@ -264,7 +222,7 @@ class QMachine:
                 )
             )
 
-        def calculate_timeout_to_failure(self, fixed_time: bool = False) -> float:
+        def timeout_to_failure(self, fixed_time: bool = False) -> float:
             """
             Calculates and logs the timeout duration until the next machine failure event.
             This method determines the time to the next failure event using the machine's mean time to failure (MTTF).
@@ -276,16 +234,21 @@ class QMachine:
                 float: The calculated timeout duration until the next failure event.
             """
 
-            self.timeout_event_failure = mean_time_to_failure(self.mttf, fixed_time)
+            if fixed_time:
+                self.timeout_event_failure = self.mttf
+            else:
+                self.timeout_event_failure = random.expovariate(1 / self.mttf)
+
             self.logs.append(
                 QMachine.QMachineLog(
                     timestamp=self._environment.now,
                     message=f"Timeout to failure calculated: {self.timeout_event_failure}",
                 )
             )
+
             return self.timeout_event_failure
 
-        def calculate_timeout_to_produce(self, fixed_time: bool = False) -> float:
+        def timeout_to_produce(self, fixed_time: bool = False) -> float:
             """
             Calculates and sets the timeout required to produce a part.
             This method computes the production timeout using the `time_per_part` function,
@@ -298,7 +261,15 @@ class QMachine:
             Returns:
                 float: The calculated timeout value for producing a part.
             """
-            self.timeout_event_production = time_per_part(self.mean_operation_time, self.sigma, fixed_time)
+
+            if fixed_time:
+                self.timeout_event_production = self.mean_operation_time
+
+            else:
+                self.timeout_event_production = random.normalvariate(self.mean_operation_time, self.sigma)
+                while self.timeout_event_production <= 0:
+                    self.timeout_event_production = random.normalvariate(self.mean_operation_time, self.sigma)
+
             self.logs.append(
                 QMachine.QMachineLog(
                     timestamp=self._environment.now,
@@ -309,11 +280,9 @@ class QMachine:
 
         def set_factory(self, factory: QFactory):
             """
-            Sets the factory for the machine and logs the change.
-
+            Set the factory for the machine and log the change.
             Args:
                 factory (QFactory): The factory instance to associate with this machine.
-
             Side Effects:
                 Updates the machine's internal factory reference.
                 Appends a log entry to the machine's logs indicating the factory change, including a timestamp and the new factory state.
@@ -328,8 +297,7 @@ class QMachine:
 
         def get_factory(self) -> QFactory | None:
             """
-            Returns the associated QFactory instance if available.
-
+            Get the associated QFactory instance if available.
             Returns:
                 QFactory | None: The factory object associated with this instance, or None if not set.
             """
@@ -337,8 +305,7 @@ class QMachine:
 
         def get_environment(self) -> QEnvironment:
             """
-            Returns the current QEnvironment instance associated with the machine.
-
+            Get the current QEnvironment instance associated with the machine.
             Returns:
                 QEnvironment: The environment object currently set for this machine.
             """
@@ -395,9 +362,7 @@ class QMachine:
 
         self.machine_state.set_state("idle")
 
-        self.event_failure = self.machine_state.get_environment().timeout(
-            self.machine_state.calculate_timeout_to_failure()
-        )
+        self.event_failure = self.machine_state.get_environment().timeout(self.machine_state.timeout_to_failure())
         self.event_production = self.machine_state.get_environment().timeout(0)
 
     def produce(self, parts_to_produce: int):
@@ -421,7 +386,7 @@ class QMachine:
         for _ in range(parts_to_produce):
 
             self.event_production = self.machine_state.get_environment().timeout(
-                self.machine_state.calculate_timeout_to_produce()
+                self.machine_state.timeout_to_produce()
             )
             self.machine_state.set_state("working")
             yield self.event_failure | self.event_production
@@ -444,7 +409,9 @@ class QMachine:
         If there are parts pending, initiates the production process for the remaining parts.
         Otherwise, sets the machine state to "idle" if not "idle".
         """
-        self.event_failure = self.machine_state.get_environment().timeout(mean_time_to_failure(self.machine_state.mttf))
+        self.event_failure = self.machine_state.get_environment().timeout(
+            self.machine_state.timeout_to_failure(fixed_time=False)
+        )
         if self.machine_state.parts_pending > 0:
             self.machine_state.get_environment().process(self.produce(self.machine_state.parts_pending))
         else:

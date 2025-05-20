@@ -30,15 +30,6 @@ class QRepairman:
         time_to_repair: float = Field(description="Time to repair a machine", gt=0, le=1000)
         downtime: float = Field(description="Downtime for a repairman", le=1000)
 
-    class QRepairmanLog(QLogEntry):
-        """
-        Represents a log entry for the repairman, including timestamp, message, and optional data.
-        Attributes:
-            timestamp (float): Simulation time of the log entry.
-            message (str): Log message.
-            data (dict): Additional data related to the log event.
-        """
-
     class QRepairmanState(BaseModel):
         """
         Tracks the current state and statistics of the repairman.
@@ -61,7 +52,7 @@ class QRepairman:
         downtime: float = Field(description="Downtime for a repairman", gt=0, le=1000)
         state: Literal["idle", "working"] = Field(default="idle", description="State of the repairman")
 
-        logs: list[QRepairman.QRepairmanLog] = []
+        logs: list[QLogEntry] = []
 
         _environment: QEnvironment = PrivateAttr()
         _factory: QFactory | None = PrivateAttr(default=None)
@@ -146,7 +137,7 @@ class QRepairman:
                 message (str): Log message.
                 data (dict, optional): Additional data for the log entry.
             """
-            log_entry = QRepairman.QRepairmanLog(timestamp=timestamp, message=message, data=data or {})
+            log_entry = QLogEntry(timestamp=timestamp, message=message, data=data or {})
             self.logs.append(log_entry)
 
     @classmethod

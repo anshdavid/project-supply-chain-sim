@@ -1,8 +1,6 @@
 from __future__ import annotations
 import simpy
 
-from src.schema import EventLog, TaskLog
-
 
 # class EventHandler:
 

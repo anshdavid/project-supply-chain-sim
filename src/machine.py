@@ -77,12 +77,6 @@ class QMachine:
         - Use restart() to resume operation after repair or failure.
     """
 
-    class QMachineLog(QLogEntry):
-        """
-        Represents a log entry for the QMachine, containing a timestamp, a message, and optional additional data.
-        Inherits from LogEntry.
-        """
-
     class QMachineConfig(BaseModel):
         """
         Configuration model for a machine in the system.
@@ -138,7 +132,7 @@ class QMachine:
         mttf: float = Field(description="Mean Time to Failures", gt=0)
         parts_produced: int = Field(default=0, description="Total parts produced by the machine")
         parts_pending: int = Field(default=0, description="Pending parts to be produced")
-        logs: list[QMachine.QMachineLog] = []
+        logs: list[QLogEntry] = []
 
         timeout_failure: float = Field(default=0, description="Timeout event for failure")
         timeout_production: float = Field(default=0, description="Timeout event for production")
@@ -157,7 +151,7 @@ class QMachine:
                 Updates the machine's state and appends a log entry with the current timestamp and state change message.
             """
             self.state = state
-            self.logs.append(QMachine.QMachineLog(timestamp=self._environment.now, message=f"State changed to {state}"))
+            self.logs.append(QLogEntry(timestamp=self._environment.now, message=f"State changed to {state}"))
 
         def get_state(self) -> str:
             """
@@ -193,9 +187,7 @@ class QMachine:
             """
             self.parts_produced += parts
             self.logs.append(
-                QMachine.QMachineLog(
-                    timestamp=self._environment.now, message=f"Parts produced updated to {self.parts_produced}"
-                )
+                QLogEntry(timestamp=self._environment.now, message=f"Parts produced updated to {self.parts_produced}")
             )
 
         def update_parts_pending(self, parts: int):
@@ -211,9 +203,7 @@ class QMachine:
             """
             self.parts_pending += parts
             self.logs.append(
-                QMachine.QMachineLog(
-                    timestamp=self._environment.now, message=f"Parts pending updated to {self.parts_pending}"
-                )
+                QLogEntry(timestamp=self._environment.now, message=f"Parts pending updated to {self.parts_pending}")
             )
 
         def set_timeout_to_failure(self, timeout: float):
@@ -225,7 +215,7 @@ class QMachine:
             """
             self.timeout_failure = timeout
             self.logs.append(
-                QMachine.QMachineLog(
+                QLogEntry(
                     timestamp=self._environment.now,
                     message=f"Timeout to failure set: {timeout}",
                 )
@@ -249,7 +239,7 @@ class QMachine:
             """
             self.timeout_production = timeout
             self.logs.append(
-                QMachine.QMachineLog(
+                QLogEntry(
                     timestamp=self._environment.now,
                     message=f"Timeout to produce set: {timeout}",
                 )
@@ -275,7 +265,7 @@ class QMachine:
             """
             self._factory = factory
             self.logs.append(
-                QMachine.QMachineLog(
+                QLogEntry(
                     timestamp=self._environment.now,
                     message=f"Factory set to {factory.factory_state.name}",
                 )
@@ -317,7 +307,7 @@ class QMachine:
                 message (str): The log message.
                 data (dict, optional): Additional data related to the log entry. Defaults to an empty dictionary.
             """
-            log_entry = QMachine.QMachineLog(timestamp=timestamp, message=message, data=data)
+            log_entry = QLogEntry(timestamp=timestamp, message=message, data=data)
             self.logs.append(log_entry)
 
     @classmethod

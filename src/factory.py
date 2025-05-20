@@ -68,12 +68,6 @@ class QFactory:
         machines: list[QMachine.QMachineConfig] = []
         repairman: list[QRepairman.QRepairmanConfig] = []
 
-    class QFactoryLog(QLogEntry):
-        """
-        Represents a log entry for the factory, including timestamp, message, and optional data.
-        Inherits from LogEntry.
-        """
-
     class QFactoryState(BaseModel):
         """
         Tracks the current state, resources, and logs of the factory.
@@ -82,7 +76,7 @@ class QFactory:
             name (str): Name of the factory.
             machine_store (FilterStore): SimPy FilterStore holding QMachine instances available in the factory.
             repairman_store (FilterStore): SimPy FilterStore holding QRepairman instances available in the factory.
-            logs (list[QFactory.QFactoryLog]): List of log entries for factory events.
+            logs (list[QLogEntry]): List of log entries for factory events.
             _environment (QEnvironment): The simulation environment associated with the factory (private).
 
         Methods:
@@ -99,7 +93,7 @@ class QFactory:
         """
 
         name: str
-        logs: list[QFactory.QFactoryLog] = []
+        logs: list[QLogEntry] = []
 
         _environment: QEnvironment = PrivateAttr()
         _machine_store: FilterStore = PrivateAttr()
@@ -177,7 +171,7 @@ class QFactory:
                 message (str): Log message.
                 data (dict): Additional data related to the log event.
             """
-            self.logs.append(QFactory.QFactoryLog(timestamp=timestamp, message=message, data=data or {}))
+            self.logs.append(QLogEntry(timestamp=timestamp, message=message, data=data or {}))
 
     @classmethod
     def from_config(cls, env: QEnvironment, config: QFactoryConfig) -> "QFactory":

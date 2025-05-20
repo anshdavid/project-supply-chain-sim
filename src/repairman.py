@@ -200,7 +200,7 @@ class QRepairman:
             self.repairman_state.set_state("working")
             self.repairman_state.add_log(
                 timestamp=self.repairman_state.get_environment().now,
-                message=f"Repair started on machine {machine.machine_state.name}",
+                message=f"Repairman  started on machine {machine.machine_state.name}",
                 data={"machine": machine.machine_state.name, "repairman": self.repairman_state.name},
             )
             yield self.repairman_state.get_environment().timeout(self.repairman_state.time_to_repair)

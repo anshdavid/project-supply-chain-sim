@@ -94,6 +94,14 @@ class QRepairman:
             """
             return self.state
 
+        def set_environment(self, env: QEnvironment):
+            """
+            Set the environment associated with the repairman.
+            Args:
+                env (QEnvironment): The environment object to associate.
+            """
+            self._environment = env
+
         def get_environment(self) -> QEnvironment:
             """
             Get the environment associated with the repairman.
@@ -101,6 +109,19 @@ class QRepairman:
                 QEnvironment: The environment object.
             """
             return self._environment
+
+        def set_factory(self, factory: QFactory):
+            """
+            Set the factory associated with the repairman.
+            Args:
+                factory (QFactory): The factory object to associate.
+            """
+            self._factory = factory
+            self.add_log(
+                timestamp=self._environment.now,
+                message=f"Repairman {self.name} associated with factory {factory.factory_state.name}",
+                data={"repairman": self.name, "factory": factory.factory_state.name},
+            )
 
         def get_factory(self) -> QFactory | None:
             """
@@ -110,7 +131,7 @@ class QRepairman:
             """
             return self._factory
 
-        def add_log(self, timestamp: float, message: str, data: dict = {}):
+        def add_log(self, timestamp: float, message: str, data: dict | None = None):
             """
             Add a log entry to the repairman's log list.
             Args:
@@ -118,10 +139,29 @@ class QRepairman:
                 message (str): Log message.
                 data (dict, optional): Additional data for the log entry.
             """
-            log_entry = QRepairman.QRepairmanLog(timestamp=timestamp, message=message, data=data)
+            log_entry = QRepairman.QRepairmanLog(timestamp=timestamp, message=message, data=data or {})
             self.logs.append(log_entry)
 
-    def __init__(self, name: str, time_to_repair: float = 30, downtime: float = 1.5):
+    @classmethod
+    def from_config(cls, env: QEnvironment, config: QRepairman.QRepairmanConfig) -> QRepairman:
+        """
+        Creates a QRepairman instance from a configuration object.
+
+        Args:
+            env (QEnvironment): The environment in which the repairman operates.
+            config (QRepairman.QRepairmanConfig): Configuration object containing repairman parameters.
+
+        Returns:
+            QRepairman: An instance of QRepairman initialized with the provided configuration.
+        """
+        return cls(
+            name=config.name,
+            env=env,
+            time_to_repair=config.time_to_repair,
+            downtime=config.downtime,
+        )
+
+    def __init__(self, name: str, env: QEnvironment, time_to_repair: float = 30, downtime: float = 1.5):
         """
         Initialize a QRepairman instance with the given parameters.
         Args:
@@ -134,6 +174,8 @@ class QRepairman:
             time_to_repair=time_to_repair,
             downtime=downtime,
         )
+
+        self.repairman_state.set_environment(env)
 
     def repair_machine(self, env: QEnvironment, machine: QMachine):
         """
@@ -156,7 +198,6 @@ class QRepairman:
             )
             yield self.repairman_state.get_environment().timeout(self.repairman_state.time_to_repair)
             machine.machine_state.set_state("idle")
-            self.repairman_state.set_state("idle")
             self.repairman_state.add_log(
                 timestamp=env.now,
                 message=f"Repair completed on machine {machine.machine_state.name}",
@@ -169,3 +210,5 @@ class QRepairman:
                 message=f"Machine {machine.machine_state.name} is not broken, no repair needed",
                 data={"machine": machine.machine_state.name, "repairman": self.repairman_state.name},
             )
+        yield self.repairman_state.get_environment().timeout(self.repairman_state.downtime)
+        self.repairman_state.set_state("idle")

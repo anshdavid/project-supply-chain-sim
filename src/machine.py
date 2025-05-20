@@ -295,6 +295,17 @@ class QMachine:
             """
             return self._factory
 
+        def set_environment(self, env: QEnvironment):
+            """
+            Set the environment for the machine and log the change.
+            Args:
+                env (QEnvironment): The environment instance to associate with this machine.
+            Side Effects:
+                Updates the machine's internal environment reference.
+                Appends a log entry to the machine's logs indicating the environment change, including a timestamp and the new environment state.
+            """
+            self._environment = env
+
         def get_environment(self) -> QEnvironment:
             """
             Get the current QEnvironment instance associated with the machine.
@@ -350,13 +361,12 @@ class QMachine:
         )
         # fmt:on
 
-        self.machine_state._environment = env
-
+        self.machine_state.set_environment(env)
         self.machine_state.set_state("idle")
 
-        self.machine_state.set_timeout_to_failure(self.calculate_timeout_to_failure(fixed_time=False))
-
-        self.event_failure = self.machine_state.get_environment().timeout(self.machine_state.get_timeout_to_failure())
+        ttf = self.calculate_timeout_to_failure(fixed_time=False)
+        self.machine_state.set_timeout_to_failure(ttf)
+        self.event_failure = self.machine_state.get_environment().timeout(ttf)
         self.event_production = self.machine_state.get_environment().timeout(0)
 
     def calculate_timeout_to_failure(self, fixed_time: bool = False) -> float:

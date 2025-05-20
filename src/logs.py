@@ -21,4 +21,5 @@ class QLogEntry(BaseModel):
 
     timestamp: float
     message: str = Field(description="Log message")
+    # type_: Literal["Event", "Task"] = Field(description="Type of log entry")
     data: dict = Field(default_factory=dict, description="Additional data related to the log")

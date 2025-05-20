@@ -91,6 +91,16 @@ class QRepairman:
             """
             return self.state
 
+        def is_state(self, state: Literal["idle", "working"]) -> bool:
+            """
+            Check if the repairman is in a specific state.
+            Args:
+                state (Literal["idle", "working"]): The state to check.
+            Returns:
+                bool: True if the repairman is in the specified state, False otherwise.
+            """
+            return self.state == state
+
         def set_environment(self, env: QEnvironment):
             """
             Set the environment associated with the repairman.
@@ -174,7 +184,7 @@ class QRepairman:
 
         self.repairman_state.set_environment(env)
 
-    def repair_machine(self, env: QEnvironment, machine: QMachine):
+    def repair_machine(self, machine: QMachine):
         """
         Simulate the repair process for a machine.
         If the machine is broken, set its state to 'repair', set the repairman to 'working',
@@ -189,23 +199,24 @@ class QRepairman:
             machine.machine_state.set_state("repair")
             self.repairman_state.set_state("working")
             self.repairman_state.add_log(
-                timestamp=env.now,
+                timestamp=self.repairman_state.get_environment().now,
                 message=f"Repair started on machine {machine.machine_state.name}",
                 data={"machine": machine.machine_state.name, "repairman": self.repairman_state.name},
             )
             yield self.repairman_state.get_environment().timeout(self.repairman_state.time_to_repair)
             machine.machine_state.set_state("idle")
             self.repairman_state.add_log(
-                timestamp=env.now,
+                timestamp=self.repairman_state.get_environment().now,
                 message=f"Repair completed on machine {machine.machine_state.name}",
                 data={"machine": machine.machine_state.name, "repairman": self.repairman_state.name},
             )
             machine.restart()
         else:
             self.repairman_state.add_log(
-                timestamp=env.now,
+                timestamp=self.repairman_state.get_environment().now,
                 message=f"Machine {machine.machine_state.name} is not broken, no repair needed",
                 data={"machine": machine.machine_state.name, "repairman": self.repairman_state.name},
             )
         yield self.repairman_state.get_environment().timeout(self.repairman_state.downtime)
-        self.repairman_state.set_state("idle")
+        if not self.repairman_state.is_state("idle"):
+            self.repairman_state.set_state("idle")

@@ -408,7 +408,7 @@ class QMachine:
 
         return timeout_event_production
 
-    def produce(self, parts_to_produce: int):
+    def produce_p(self, parts_to_produce: int):
         """
         Simulates the production of a specified number of parts by the machine.
         Args:
@@ -459,7 +459,7 @@ class QMachine:
         self.event_failure = self.machine_state.get_environment().timeout(ttf)
 
         if self.machine_state.parts_pending > 0:
-            self.machine_state.get_environment().process(self.produce(self.machine_state.parts_pending))
+            self.machine_state.get_environment().process(self.produce_p(self.machine_state.parts_pending))
         else:
             if not self.machine_state.is_state("idle"):
                 self.machine_state.set_state("idle")

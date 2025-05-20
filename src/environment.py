@@ -51,11 +51,12 @@ from src.schema import EventLog, TaskLog
 
 
 class QEnvironment(simpy.Environment):
+    ...
 
-    def __init__(self, initial_time: int | float = 0):
-        super().__init__(initial_time)
-        self._task_logs: list[TaskLog] = []
+    # def __init__(self, initial_time: int | float = 0):
+    #     super().__init__(initial_time)
+    #     self._task_logs: list[TaskLog] = []
 
-    @property
-    def task_logs(self) -> list[TaskLog]:
-        return self._task_logs
+    # @property
+    # def task_logs(self) -> list[TaskLog]:
+    #     return self._task_logs

@@ -202,9 +202,9 @@ class QMachine:
                 - Appends a log entry to the `logs` list with the updated pending count and current timestamp.
             """
             self.parts_pending += parts
-            self.logs.append(
-                QLogEntry(timestamp=self._environment.now, message=f"Parts pending updated to {self.parts_pending}")
-            )
+            # self.logs.append(
+            #     QLogEntry(timestamp=self._environment.now, message=f"Parts pending updated to {self.parts_pending}")
+            # )
 
         def set_timeout_to_failure(self, timeout: float):
             """
@@ -461,6 +461,7 @@ class QMachine:
         self.event_failure = self.machine_state.get_environment().timeout(ttf)
 
         if self.machine_state.is_state("idle") or self.machine_state.is_state("repair"):
+            self.machine_state.set_state("idle")
             if self.machine_state.parts_pending > 0:
                 self.machine_state.get_environment().process(self.produce_p(self.machine_state.parts_pending))
                 return

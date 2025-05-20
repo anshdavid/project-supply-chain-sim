@@ -1,29 +1,33 @@
+import json
 from src.factory import QFactory
 from src.environment import QEnvironment
+from src.logs import QSimulationLog
 from src.machine import QMachine
 from src.repairman import QRepairman
 
 
-def test_factory():
+def test_factory(duration: int = 10000):
+
     env = QEnvironment()
     config = QFactory.QFactoryConfig(
         name="TestFactory",
-        machines=[QMachine.QMachineConfig(name="M1", state="idle", mean_operation_time=5.0, sigma=1.0, mttf=500.0)],
+        machines=[QMachine.QMachineConfig(name="M1", state="idle", mean_operation_time=5.0, sigma=1.0, mttf=200.0)],
         repairman=[QRepairman.QRepairmanConfig(name="R1", time_to_repair=5, downtime=1)],
     )
     factory = QFactory.from_config(env, config)
 
     factory.run()
-    env.run(10000)
+    env.run(duration)
 
-    for machine in factory.factory_state.get_all_machines():
-        print(machine.machine_state.parts_produced, machine.machine_state.parts_pending)
+    sim_log = QSimulationLog.from_factory(
+        factory=factory,
+        duration=duration,
+        message="Simulation log",
+        data={"additional_info": "This is a test simulation log"},
+    )
 
-    # for machine in factory.factory_state.get_all_machines():
-    #     pprint.pprint(machine.machine_state.logs[-10:])
-
-    # for repairman in factory.factory_state.get_all_repairmen():
-    #     pprint.pprint(repairman.repairman_state.logs[-10:])
+    with open(r"/app/logs/simlog_log.json", "w", encoding="utf-8") as f:
+        json.dump(sim_log.model_dump(), f, indent=4)
 
 
 if __name__ == "__main__":

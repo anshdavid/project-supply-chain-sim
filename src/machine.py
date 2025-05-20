@@ -35,7 +35,7 @@ from typing import Literal, TYPE_CHECKING
 from pydantic import BaseModel, Field, PrivateAttr
 
 from src.environment import QEnvironment
-from src.logs import LogEntry
+from src.logs import QLogEntry
 
 if TYPE_CHECKING:
     from src.factory import QFactory
@@ -77,7 +77,7 @@ class QMachine:
         - Use restart() to resume operation after repair or failure.
     """
 
-    class QMachineLog(LogEntry):
+    class QMachineLog(QLogEntry):
         """
         Represents a log entry for the QMachine, containing a timestamp, a message, and optional additional data.
         Inherits from LogEntry.

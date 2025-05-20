@@ -4,6 +4,7 @@ from typing import Literal, TYPE_CHECKING
 from pydantic import BaseModel, Field, PrivateAttr
 
 from src.environment import QEnvironment
+from src.logs import QLogEntry
 
 if TYPE_CHECKING:
     from src.factory import QFactory
@@ -29,7 +30,7 @@ class QRepairman:
         time_to_repair: float = Field(description="Time to repair a machine", gt=0, le=1000)
         downtime: float = Field(description="Downtime for a repairman", gt=0, le=1000)
 
-    class QRepairmanLog(BaseModel):
+    class QRepairmanLog(QLogEntry):
         """
         Represents a log entry for the repairman, including timestamp, message, and optional data.
         Attributes:
@@ -37,10 +38,6 @@ class QRepairman:
             message (str): Log message.
             data (dict): Additional data related to the log event.
         """
-
-        timestamp: float
-        message: str = Field(description="Log message")
-        data: dict = Field(default_factory=dict, description="Additional data related to the log")
 
     class QRepairmanState(BaseModel):
         """

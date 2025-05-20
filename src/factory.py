@@ -31,7 +31,7 @@ from simpy.resources.store import FilterStoreGet
 from src.environment import QEnvironment
 from src.machine import QMachine
 from src.repairman import QRepairman
-from src.logs import LogEntry
+from src.logs import QLogEntry
 
 
 class QFactory:
@@ -69,7 +69,7 @@ class QFactory:
         machines: list[QMachine.QMachineConfig] = []
         repairman: list[QRepairman.QRepairmanConfig] = []
 
-    class QFactoryLog(LogEntry):
+    class QFactoryLog(QLogEntry):
         """
         Represents a log entry for the factory, including timestamp, message, and optional data.
         Inherits from LogEntry.

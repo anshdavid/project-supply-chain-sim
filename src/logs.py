@@ -10,7 +10,7 @@ Classes:
 from pydantic import BaseModel, Field
 
 
-class LogEntry(BaseModel):
+class QLogEntry(BaseModel):
     """
     Represents a generic log entry with a timestamp, message, and optional data.
     Attributes:

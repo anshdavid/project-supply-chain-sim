@@ -28,13 +28,34 @@ from pydantic import BaseModel, Field, PrivateAttr
 from simpy import FilterStore
 from simpy.resources.store import FilterStoreGet
 
-
 from src.environment import QEnvironment
 from src.machine import QMachine
 from src.repairman import QRepairman
+from src.logs import LogEntry
 
 
 class QFactory:
+    """
+    QFactory is the main class for managing a simulated factory environment.
+
+    Responsibilities:
+        - Manages collections of machines and repairmen using SimPy's FilterStore.
+        - Provides methods to add, remove, retrieve, and store machines and repairmen.
+        - Maintains a log of significant factory events, including resource changes and state transitions.
+        - Supports initialization from configuration objects for flexible simulation setup.
+        - Integrates with a simulation environment (QEnvironment) and supports event-driven simulation.
+
+    Inner Classes:
+        QFactoryConfig: Pydantic model for factory configuration, including machine and repairman configs.
+        QFactoryLog: Log entry for factory events, inheriting from LogEntry.
+        QFactoryState: Tracks the current state, resources, and logs of the factory, and provides resource management methods.
+
+    Usage:
+        - Instantiate directly or via QFactory.from_config().
+        - Use add_machine, remove_machine, add_repairman, and remove_repairman to manage resources.
+        - Access logs and state via the QFactoryState inner class.
+    """
+
     class QFactoryConfig(BaseModel):
         """
         Configuration schema for initializing a QFactory.
@@ -48,18 +69,11 @@ class QFactory:
         machines: list[QMachine.QMachineConfig] = []
         repairman: list[QRepairman.QRepairmanConfig] = []
 
-    class QFactoryLog(BaseModel):
+    class QFactoryLog(LogEntry):
         """
         Represents a log entry for the factory, including timestamp, message, and optional data.
-        Attributes:
-            timestamp (float): Simulation time of the log entry.
-            message (str): Log message.
-            data (dict): Additional data related to the log event.
+        Inherits from LogEntry.
         """
-
-        timestamp: float
-        message: str = Field(description="Log message")
-        data: dict = Field(default_factory=dict, description="Additional data related to the log")
 
     class QFactoryState(BaseModel):
         """

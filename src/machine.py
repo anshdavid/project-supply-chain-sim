@@ -7,7 +7,7 @@ for configuration and state management. The simulation is intended to be used wi
 Main Components:
 ----------------
 - QMachine: Simulates a production machine, tracking its operational state, production statistics, and logs.
-- QMachineLog: Represents a log entry for the machine, including a timestamp, message, and optional data.
+- QMachineLog: Represents a log entry for the machine, inheriting from LogEntry.
 - QMachineConfig: Configuration schema for initializing a QMachine.
 - QMachineState: Tracks the current state and statistics of the machine, and provides methods for state and production updates.
 - Utility functions:
@@ -22,6 +22,7 @@ Dependencies:
 - pydantic: For configuration and state models.
 - src.environment.QEnvironment: The simulation environment.
 - src.factory.QFactory: The factory context (referenced via TYPE_CHECKING).
+- src.logs.LogEntry: Base class for log entries.
 """
 
 from __future__ import annotations
@@ -34,6 +35,7 @@ from typing import Literal, TYPE_CHECKING
 from pydantic import BaseModel, Field, PrivateAttr
 
 from src.environment import QEnvironment
+from src.logs import LogEntry
 
 if TYPE_CHECKING:
     from src.factory import QFactory
@@ -43,8 +45,8 @@ class QMachine:
     """
     QMachine simulates a production machine within a factory environment, tracking its operational state, production statistics, and logs.
     Classes:
-        QMachineLog (BaseModel):
-            Represents a log entry for the machine, including a timestamp, message, and optional data.
+        QMachineLog (LogEntry):
+            Represents a log entry for the machine, inheriting from LogEntry.
         QMachineConfig (BaseModel):
             Configuration schema for initializing a QMachine, including name, state, mean operation time, standard deviation, and mean time to failure.
         QMachineState (BaseModel):
@@ -75,18 +77,11 @@ class QMachine:
         - Use restart() to resume operation after repair or failure.
     """
 
-    class QMachineLog(BaseModel):
+    class QMachineLog(LogEntry):
         """
         Represents a log entry for the QMachine, containing a timestamp, a message, and optional additional data.
-        Attributes:
-            timestamp (float): The simulation time when the log entry was created.
-            message (str): The log message.
-            data (dict): Optional additional data related to the log event.
+        Inherits from LogEntry.
         """
-
-        timestamp: float
-        message: str = Field(description="Log message")
-        data: dict = Field(default_factory=dict, description="Additional data related to the log")
 
     class QMachineConfig(BaseModel):
         """
@@ -144,7 +139,6 @@ class QMachine:
         parts_produced: int = Field(default=0, description="Total parts produced by the machine")
         parts_pending: int = Field(default=0, description="Pending parts to be produced")
         logs: list[QMachine.QMachineLog] = []
-        # Field(default_factory=list, description="List of logs for the machine")
 
         timeout_failure: float = Field(default=0, description="Timeout event for failure")
         timeout_production: float = Field(default=0, description="Timeout event for production")

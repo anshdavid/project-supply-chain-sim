@@ -146,8 +146,8 @@ class QMachine:
         logs: list[QMachine.QMachineLog] = []
         # Field(default_factory=list, description="List of logs for the machine")
 
-        timeout_event_failure: float = Field(default=0, description="Timeout event for failure")
-        timeout_event_production: float = Field(default=0, description="Timeout event for production")
+        timeout_failure: float = Field(default=0, description="Timeout event for failure")
+        timeout_production: float = Field(default=0, description="Timeout event for production")
 
         _environment: QEnvironment = PrivateAttr()
         _factory: QFactory | None = PrivateAttr(default=None)
@@ -222,61 +222,53 @@ class QMachine:
                 )
             )
 
-        def timeout_to_failure(self, fixed_time: bool = False) -> float:
+        def set_timeout_to_failure(self, timeout: float):
             """
-            Calculates and logs the timeout duration until the next machine failure event.
-            This method determines the time to the next failure event using the machine's mean time to failure (MTTF).
-            It optionally uses a fixed time if specified. The calculated timeout is stored in `self.timeout_event_failure`
-            and a log entry is appended with the calculated value.
+            Set the timeout for the next failure event.
+
             Args:
-                fixed_time (bool, optional): If True, uses a fixed time for the timeout calculation. Defaults to False.
-            Returns:
-                float: The calculated timeout duration until the next failure event.
+                timeout (float): The timeout duration to set.
             """
-
-            if fixed_time:
-                self.timeout_event_failure = self.mttf
-            else:
-                self.timeout_event_failure = random.expovariate(1 / self.mttf)
-
+            self.timeout_failure = timeout
             self.logs.append(
                 QMachine.QMachineLog(
                     timestamp=self._environment.now,
-                    message=f"Timeout to failure calculated: {self.timeout_event_failure}",
+                    message=f"Timeout to failure set: {timeout}",
                 )
             )
 
-            return self.timeout_event_failure
-
-        def timeout_to_produce(self, fixed_time: bool = False) -> float:
+        def get_timeout_to_failure(self) -> float:
             """
-            Calculates and sets the timeout required to produce a part.
-            This method computes the production timeout using the `time_per_part` function,
-            based on the machine's mean operation time and standard deviation. The result is
-            stored in `self.timeout_event_production` and logged for traceability.
-            Args:
-                fixed_time (bool, optional): If True, uses a fixed time for the calculation.
-                    If False, uses a stochastic approach based on the mean and sigma.
-                    Defaults to False.
+            Get the timeout for the next failure event.
+
             Returns:
-                float: The calculated timeout value for producing a part.
+                float: The timeout duration for the next failure event.
             """
+            return self.timeout_failure
 
-            if fixed_time:
-                self.timeout_event_production = self.mean_operation_time
+        def set_timeout_to_produce(self, timeout: float):
+            """
+            Set the timeout for the next production event.
 
-            else:
-                self.timeout_event_production = random.normalvariate(self.mean_operation_time, self.sigma)
-                while self.timeout_event_production <= 0:
-                    self.timeout_event_production = random.normalvariate(self.mean_operation_time, self.sigma)
-
+            Args:
+                timeout (float): The timeout duration to set.
+            """
+            self.timeout_production = timeout
             self.logs.append(
                 QMachine.QMachineLog(
                     timestamp=self._environment.now,
-                    message=f"Timeout to produce calculated: {self.timeout_event_production}",
+                    message=f"Timeout to produce set: {timeout}",
                 )
             )
-            return self.timeout_event_production
+
+        def get_timeout_to_produce(self) -> float:
+            """
+            Get the timeout for the next production event.
+
+            Returns:
+                float: The timeout duration for the next production event.
+            """
+            return self.timeout_production
 
         def set_factory(self, factory: QFactory):
             """
@@ -362,8 +354,55 @@ class QMachine:
 
         self.machine_state.set_state("idle")
 
-        self.event_failure = self.machine_state.get_environment().timeout(self.machine_state.timeout_to_failure())
+        self.machine_state.set_timeout_to_failure(self.calculate_timeout_to_failure(fixed_time=False))
+
+        self.event_failure = self.machine_state.get_environment().timeout(self.machine_state.get_timeout_to_failure())
         self.event_production = self.machine_state.get_environment().timeout(0)
+
+    def calculate_timeout_to_failure(self, fixed_time: bool = False) -> float:
+        """
+        Calculates and logs the timeout duration until the next machine failure event.
+        This method determines the time to the next failure event using the machine's mean time to failure (MTTF).
+        It optionally uses a fixed time if specified. The calculated timeout is stored in `self.timeout_event_failure`
+        and a log entry is appended with the calculated value.
+        Args:
+            fixed_time (bool, optional): If True, uses a fixed time for the timeout calculation. Defaults to False.
+        Returns:
+            float: The calculated timeout duration until the next failure event.
+        """
+
+        if fixed_time:
+            return self.machine_state.mttf
+        else:
+            return random.expovariate(1 / self.machine_state.mttf)
+
+    def calculate_timeout_to_produce(self, fixed_time: bool = False) -> float:
+        """
+        Calculates and sets the timeout required to produce a part.
+        This method computes the production timeout using the `time_per_part` function,
+        based on the machine's mean operation time and standard deviation. The result is
+        stored in `self.timeout_event_production` and logged for traceability.
+        Args:
+            fixed_time (bool, optional): If True, uses a fixed time for the calculation.
+                If False, uses a stochastic approach based on the mean and sigma.
+                Defaults to False.
+        Returns:
+            float: The calculated timeout value for producing a part.
+        """
+
+        if fixed_time:
+            return self.machine_state.mean_operation_time
+
+        else:
+            timeout_event_production = random.normalvariate(
+                self.machine_state.mean_operation_time, self.machine_state.sigma
+            )
+            while timeout_event_production <= 0:
+                timeout_event_production = random.normalvariate(
+                    self.machine_state.mean_operation_time, self.machine_state.sigma
+                )
+
+        return timeout_event_production
 
     def produce(self, parts_to_produce: int):
         """
@@ -385,14 +424,15 @@ class QMachine:
 
         for _ in range(parts_to_produce):
 
+            self.machine_state.set_timeout_to_produce(self.calculate_timeout_to_produce(fixed_time=False))
+
             self.event_production = self.machine_state.get_environment().timeout(
-                self.machine_state.timeout_to_produce()
+                self.machine_state.get_timeout_to_produce()
             )
             self.machine_state.set_state("working")
             yield self.event_failure | self.event_production
 
             if self.event_production.processed:
-
                 self.machine_state.update_parts_produced(+1)
                 self.machine_state.update_parts_pending(-1)
 
@@ -409,9 +449,11 @@ class QMachine:
         If there are parts pending, initiates the production process for the remaining parts.
         Otherwise, sets the machine state to "idle" if not "idle".
         """
-        self.event_failure = self.machine_state.get_environment().timeout(
-            self.machine_state.timeout_to_failure(fixed_time=False)
-        )
+
+        ttf = self.calculate_timeout_to_failure(fixed_time=False)
+        self.machine_state.set_timeout_to_failure(ttf)
+        self.event_failure = self.machine_state.get_environment().timeout(ttf)
+
         if self.machine_state.parts_pending > 0:
             self.machine_state.get_environment().process(self.produce(self.machine_state.parts_pending))
         else:

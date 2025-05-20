@@ -269,7 +269,7 @@ class QFactory:
                 lambda repairman: repairman.repairman_state.is_state("idle")
             )
             repairman = cast(QRepairman, repairman_)
-            yield self.factory_state.get_environment().process(repairman.repair_machine(machine))
+            yield self.factory_state.get_environment().process(repairman.repair_machine_p(machine))
             self.factory_state.get_repairman_store().put(repairman)
 
         while True:
@@ -293,11 +293,9 @@ class QFactory:
             )
         yield self.factory_state.get_environment().timeout(0)
 
-    def run_p(self):
-
+    def run(self):
         self.factory_state.get_environment().process(self.start_machine_p())
         self.factory_state.get_environment().process(self.start_monitor_p())
-        yield self.factory_state.get_environment().timeout(0)
 
         # self.factory_state.get_environment().process(self.start_monitor())
         # yield self.factory_state.get_environment().timeout(0)

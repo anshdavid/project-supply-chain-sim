@@ -78,7 +78,7 @@ class TestQRepairman(unittest.TestCase):
         repairman, env = make_repairman()
         machine, _ = make_machine()
         machine.machine_state.set_state("broken")
-        gen = repairman.repair_machine(cast(QEnvironment, env), machine)
+        gen = repairman.repair_machine_p(cast(QEnvironment, env), machine)
         # Start repair (should set states and log)
         next(gen)
         self.assertEqual(machine.machine_state.state, "repair")
@@ -106,7 +106,7 @@ class TestQRepairman(unittest.TestCase):
         repairman, env = make_repairman()
         machine, _ = make_machine()
         machine.machine_state.set_state("idle")
-        gen = repairman.repair_machine(cast(QEnvironment, env), machine)
+        gen = repairman.repair_machine_p(cast(QEnvironment, env), machine)
         # Should log that no repair is needed
         next(gen)
         messages = [log.message for log in repairman.repairman_state.logs]

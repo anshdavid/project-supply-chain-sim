@@ -14,7 +14,7 @@ def test_factory():
     )
     factory = QFactory.from_config(env, config)
 
-    env.process(factory.run_p())
+    factory.run()
     env.run(10000)
 
     for machine in factory.factory_state.get_all_machines():

@@ -184,7 +184,7 @@ class QRepairman:
 
         self.repairman_state.set_environment(env)
 
-    def repair_machine(self, machine: QMachine):
+    def repair_machine_p(self, machine: QMachine):
         """
         Simulate the repair process for a machine.
         If the machine is broken, set its state to 'repair', set the repairman to 'working',
@@ -204,7 +204,6 @@ class QRepairman:
                 data={"machine": machine.machine_state.name, "repairman": self.repairman_state.name},
             )
             yield self.repairman_state.get_environment().timeout(self.repairman_state.time_to_repair)
-            machine.machine_state.set_state("idle")
             self.repairman_state.add_log(
                 timestamp=self.repairman_state.get_environment().now,
                 message=f"Repair completed on machine {machine.machine_state.name}",

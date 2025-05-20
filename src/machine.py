@@ -423,6 +423,12 @@ class QMachine:
                 - If a failure occurs, sets the machine state to "broken" and exits.
             - After all parts are produced, sets the machine state to "idle".
         """
+        if not self.machine_state.is_state("idle"):
+            self.machine_state.add_log(
+                timestamp=self.machine_state.get_environment().now,
+                message=f"Machine {self.machine_state.name} is not idle, cannot produce parts.",
+            )
+            return
 
         self.machine_state.parts_pending = parts_to_produce
 
@@ -458,8 +464,9 @@ class QMachine:
         self.machine_state.set_timeout_to_failure(ttf)
         self.event_failure = self.machine_state.get_environment().timeout(ttf)
 
-        if self.machine_state.parts_pending > 0:
-            self.machine_state.get_environment().process(self.produce_p(self.machine_state.parts_pending))
-        else:
-            if not self.machine_state.is_state("idle"):
-                self.machine_state.set_state("idle")
+        if self.machine_state.is_state("idle") or self.machine_state.is_state("repair"):
+            if self.machine_state.parts_pending > 0:
+                self.machine_state.get_environment().process(self.produce_p(self.machine_state.parts_pending))
+                return
+
+        self.machine_state.set_state("idle")

@@ -28,7 +28,7 @@ class QRepairman:
 
         name: str = Field(description="Name of the repairman")
         time_to_repair: float = Field(description="Time to repair a machine", gt=0, le=1000)
-        downtime: float = Field(description="Downtime for a repairman", gt=0, le=1000)
+        downtime: float = Field(description="Downtime for a repairman", le=1000)
 
     class QRepairmanLog(QLogEntry):
         """

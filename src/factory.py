@@ -99,18 +99,11 @@ class QFactory:
         """
 
         name: str
-        machine_store: FilterStore
-        repairman_store: FilterStore
-
         logs: list[QFactory.QFactoryLog] = []
 
         _environment: QEnvironment = PrivateAttr()
-
-        def __init__(self, name: str, env: QEnvironment):
-            super().__init__(name=name)
-            self._environment = env
-            self.machine_store = FilterStore(env)
-            self.repairman_store = FilterStore(env)
+        _machine_store: FilterStore = PrivateAttr()
+        _repairman_store: FilterStore = PrivateAttr()
 
         def set_environment(self, env: QEnvironment):
             """
@@ -128,6 +121,38 @@ class QFactory:
             """
             return self._environment
 
+        def get_machine_store(self) -> FilterStore:
+            """
+            Get the machine store.
+            Returns:
+                FilterStore: The machine store containing QMachine instances.
+            """
+            return self._machine_store
+
+        def set_machine_store(self, machine_store: FilterStore):
+            """
+            Set the machine store.
+            Args:
+                machine_store (FilterStore): The machine store to set.
+            """
+            self._machine_store = machine_store
+
+        def get_repairman_store(self) -> FilterStore:
+            """
+            Get the repairman store.
+            Returns:
+                FilterStore: The repairman store containing QRepairman instances.
+            """
+            return self._repairman_store
+
+        def set_repairman_store(self, repairman_store: FilterStore):
+            """
+            Set the repairman store.
+            Args:
+                repairman_store (FilterStore): The repairman store to set.
+            """
+            self._repairman_store = repairman_store
+
         def get_machine(self, lambda_exp: Callable[[Any], bool]) -> Generator[FilterStoreGet, None, QMachine]:
             """
             Retrieve a machine from the machine store matching a filter expression.
@@ -136,7 +161,7 @@ class QFactory:
             Yields:
                 QMachine: The machine instance matching the filter.
             """
-            machine_ = yield self.machine_store.get(lambda_exp)
+            machine_ = yield self.get_machine_store().get(lambda_exp)
             machine = cast(QMachine, machine_)
 
             self.add_log(
@@ -151,7 +176,7 @@ class QFactory:
             Args:
                 machine (QMachine): The machine to return to the store.
             """
-            self.machine_store.put(machine)
+            self.get_machine_store().put(machine)
             self.add_log(
                 timestamp=self._environment.now,
                 message=f"Machine {machine.machine_state.name} added to factory store {self.name}",
@@ -165,7 +190,7 @@ class QFactory:
             Yields:
                 QRepairman: The repairman instance matching the filter.
             """
-            repairman_ = yield self.repairman_store.get(lambda_exp)
+            repairman_ = yield self.get_repairman_store().get(lambda_exp)
             repairman = cast(QRepairman, repairman_)
 
             self.add_log(
@@ -180,7 +205,7 @@ class QFactory:
             Args:
                 repairman (QRepairman): The repairman to return to the store.
             """
-            self.repairman_store.put(repairman)
+            self.get_repairman_store().put(repairman)
             self.add_log(
                 timestamp=self._environment.now,
                 message=f"Repairman {repairman.repairman_state.name} added to factory store {self.name}",
@@ -216,8 +241,10 @@ class QFactory:
         return factory_instance
 
     def __init__(self, name: str, env: QEnvironment):
-        self.factory_state: QFactory.QFactoryState = QFactory.QFactoryState(name=name, env=env)
-        self.factory_state._environment = env
+        self.factory_state: QFactory.QFactoryState = QFactory.QFactoryState(name=name)
+        self.factory_state.set_environment(env)
+        self.factory_state.set_machine_store(FilterStore(env))
+        self.factory_state.set_repairman_store(FilterStore(env))
 
     def add_machine(self, machine: QMachine):
         """
@@ -225,7 +252,7 @@ class QFactory:
         Args:
             machine (QMachine): The machine to add.
         """
-        self.factory_state.machine_store.items.append(machine)
+        self.factory_state.get_machine_store().items.append(machine)
         self.factory_state.add_log(
             timestamp=self.factory_state.get_environment().now,
             message=f"Machine {machine.machine_state.name} added to factory {self.factory_state.name}",
@@ -237,7 +264,7 @@ class QFactory:
         Args:
             machine (QMachine): The machine to remove.
         """
-        self.factory_state.machine_store.items.remove(machine)
+        self.factory_state.get_machine_store().items.remove(machine)
         self.factory_state.add_log(
             timestamp=self.factory_state.get_environment().now,
             message=f"Machine {machine.machine_state.name} removed from factory {self.factory_state.name}",
@@ -249,7 +276,7 @@ class QFactory:
         Args:
             repairman (QRepairman): The repairman to add.
         """
-        self.factory_state.repairman_store.items.append(repairman)
+        self.factory_state.get_repairman_store().items.append(repairman)
         self.factory_state.add_log(
             timestamp=self.factory_state.get_environment().now,
             message=f"Repairman {repairman.repairman_state.name} added to factory {self.factory_state.name}",
@@ -261,7 +288,7 @@ class QFactory:
         Args:
             repairman (QRepairman): The repairman to remove.
         """
-        self.factory_state.repairman_store.items.remove(repairman)
+        self.factory_state.get_repairman_store().items.remove(repairman)
         self.factory_state.add_log(
             timestamp=self.factory_state.get_environment().now,
             message=f"Repairman {repairman.repairman_state.name} removed from factory {self.factory_state.name}",

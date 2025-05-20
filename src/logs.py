@@ -7,6 +7,7 @@ Classes:
     LogEntry: Base log entry model with timestamp, message, and optional data.
 """
 
+from typing import Literal
 from pydantic import BaseModel, Field
 
 
@@ -20,6 +21,7 @@ class QLogEntry(BaseModel):
     """
 
     timestamp: float
+    duration: float = Field(default=0, description="Duration of the log entry")
+    type_: Literal["Event", "Task"] = Field(default="Event", description="Type of log entry")
     message: str = Field(description="Log message")
-    # type_: Literal["Event", "Task"] = Field(description="Type of log entry")
     data: dict = Field(default_factory=dict, description="Additional data related to the log")

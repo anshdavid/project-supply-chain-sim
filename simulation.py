@@ -1,64 +1,31 @@
-import json
-import random
-from src.factory import Factory
+import pprint
+from src.factory import QFactory
 from src.environment import QEnvironment
-from src.schema import EnhancedJSONEncoder
+from src.machine import QMachine
+from src.repairman import QRepairman
 
 
-def test_machine():
-    """
-    test_machine _summary_
-
-    _extended_summary_
-    """
-
-    random.seed(120)
-
-    print("=== machine: 3, repairman: 1")
-
+def test_factory():
     env = QEnvironment()
-    warehouse = Factory(env, repairman=1)
-    env.process(warehouse.initialize())
-    env.run(1000)
+    config = QFactory.QFactoryConfig(
+        name="TestFactory",
+        machines=[QMachine.QMachineConfig(name="M1", state="idle", mean_operation_time=5.0, sigma=1.0, mttf=500.0)],
+        repairman=[QRepairman.QRepairmanConfig(name="R1", time_to_repair=5, downtime=1)],
+    )
+    factory = QFactory.from_config(env, config)
 
-    total = 0
-    for machine in warehouse.machines:
-        print(f"machine {machine.name} produced {machine.parts_produced}")
-        total += machine.parts_produced
-    print(f"total produced: {total}")
-    with open(r"./logs/logs_repairman_1.json", mode="w+", encoding="utf-8") as log_file:
-        json.dump({"logs": env.task_logs}, log_file, cls=EnhancedJSONEncoder)
+    env.process(factory.run_p())
+    env.run(10000)
 
-    print("=== machine: 3, repairman: 2")
+    for machine in factory.factory_state.get_all_machines():
+        print(machine.machine_state.parts_produced, machine.machine_state.parts_pending)
 
-    env = QEnvironment()
-    warehouse = Factory(env, repairman=2)
-    env.process(warehouse.initialize())
-    env.run(1000)
+    # for machine in factory.factory_state.get_all_machines():
+    #     pprint.pprint(machine.machine_state.logs[-10:])
 
-    total = 0
-    for machine in warehouse.machines:
-        print(f"machine {machine.name} produced {machine.parts_produced}")
-        total += machine.parts_produced
-    print(f"total produced: {total}")
-    with open(r"./logs/logs_repairman_2.json", mode="w+", encoding="utf-8") as log_file:
-        json.dump({"logs": env.task_logs}, log_file, cls=EnhancedJSONEncoder)
-
-    print("=== machine: 3, repairman: 3")
-
-    env = QEnvironment()
-    warehouse = Factory(env, repairman=3)
-    env.process(warehouse.initialize())
-    env.run(1000)
-
-    total = 0
-    for machine in warehouse.machines:
-        print(f"machine {machine.name} produced {machine.parts_produced}")
-        total += machine.parts_produced
-    print(f"total produced: {total}")
-    with open(r"./logs/logs_repairman_3.json", mode="w+", encoding="utf-8") as log_file:
-        json.dump({"logs": env.task_logs}, log_file, cls=EnhancedJSONEncoder)
+    # for repairman in factory.factory_state.get_all_repairmen():
+    #     pprint.pprint(repairman.repairman_state.logs[-10:])
 
 
 if __name__ == "__main__":
-    test_machine()
+    test_factory()

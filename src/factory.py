@@ -25,7 +25,7 @@ from __future__ import annotations
 from typing import Any, Callable, Generator, cast
 
 from pydantic import BaseModel, Field, PrivateAttr
-from simpy import FilterStore
+from simpy import FilterStore, Resource
 from simpy.resources.store import FilterStoreGet
 
 from src.environment import QEnvironment
@@ -96,6 +96,7 @@ class QFactory:
                 Retrieve a repairman from the store matching a filter expression.
             put_repairman(repairman: QRepairman): Put a repairman back into the store and log the event.
             add_log(timestamp: float, message: str, data: dict | None = None): Add a log entry to the factory's log.
+            get_all_machines() -> list[QMachine]: Return a list of all QMachine instances currently in the machine store.
         """
 
         name: str
@@ -153,64 +154,6 @@ class QFactory:
             """
             self._repairman_store = repairman_store
 
-        def get_machine(self, lambda_exp: Callable[[Any], bool]) -> Generator[FilterStoreGet, None, QMachine]:
-            """
-            Retrieve a machine from the machine store matching a filter expression.
-            Args:
-                lambda_exp (Callable[[Any], bool]): A filter function to select the desired machine.
-            Yields:
-                QMachine: The machine instance matching the filter.
-            """
-            machine_ = yield self.get_machine_store().get(lambda_exp)
-            machine = cast(QMachine, machine_)
-
-            self.add_log(
-                timestamp=self._environment.now,
-                message=f"Machine {machine.machine_state.name} retrieved from factory store {self.name}",
-            )
-            return cast(QMachine, machine)
-
-        def put_machine(self, machine: QMachine):
-            """
-            Put a machine back into the machine store and log the event.
-            Args:
-                machine (QMachine): The machine to return to the store.
-            """
-            self.get_machine_store().put(machine)
-            self.add_log(
-                timestamp=self._environment.now,
-                message=f"Machine {machine.machine_state.name} added to factory store {self.name}",
-            )
-
-        def get_repairman(self, lambda_exp: Callable[[Any], bool]) -> Generator[FilterStoreGet, None, QRepairman]:
-            """
-            Retrieve a repairman from the repairman store matching a filter expression.
-            Args:
-                lambda_exp (Callable[[Any], bool]): A filter function to select the desired repairman.
-            Yields:
-                QRepairman: The repairman instance matching the filter.
-            """
-            repairman_ = yield self.get_repairman_store().get(lambda_exp)
-            repairman = cast(QRepairman, repairman_)
-
-            self.add_log(
-                timestamp=self._environment.now,
-                message=f"Repairman {repairman.repairman_state.name} retrieved from factory store {self.name}",
-            )
-            return cast(QRepairman, repairman)
-
-        def put_repairman(self, repairman: QRepairman):
-            """
-            Put a repairman back into the repairman store and log the event.
-            Args:
-                repairman (QRepairman): The repairman to return to the store.
-            """
-            self.get_repairman_store().put(repairman)
-            self.add_log(
-                timestamp=self._environment.now,
-                message=f"Repairman {repairman.repairman_state.name} added to factory store {self.name}",
-            )
-
         def add_log(self, timestamp: float, message: str, data: dict | None = None):
             """
             Add a log entry to the factory's log.
@@ -220,6 +163,22 @@ class QFactory:
                 data (dict): Additional data related to the log event.
             """
             self.logs.append(QFactory.QFactoryLog(timestamp=timestamp, message=message, data=data or {}))
+
+        def get_all_machines(self) -> list[QMachine]:
+            """
+            Return a list of all QMachine instances currently in the machine store.
+            Returns:
+                list: List of QMachine objects in the machine store.
+            """
+            return self.get_machine_store().items
+
+        def get_all_repairmen(self) -> list[QRepairman]:
+            """
+            Return a list of all QRepairman instances currently in the repairman store.
+            Returns:
+                list: List of QRepairman objects in the repairman store.
+            """
+            return self.get_repairman_store().items
 
     @classmethod
     def from_config(cls, env: QEnvironment, config: QFactoryConfig) -> "QFactory":
@@ -293,3 +252,52 @@ class QFactory:
             timestamp=self.factory_state.get_environment().now,
             message=f"Repairman {repairman.repairman_state.name} removed from factory {self.factory_state.name}",
         )
+
+    def start_monitor_p(self):
+        """
+        Monitor the factory's processes and log significant events.
+        This method can be extended to include specific monitoring logic.
+        """
+
+        def repair_p(machine: QMachine):
+            """
+            Repair a machine using a repairman.
+            Args:
+                machine (QMachine): The machine to repair.
+            """
+            repairman_ = yield self.factory_state.get_repairman_store().get(
+                lambda repairman: repairman.repairman_state.is_state("idle")
+            )
+            repairman = cast(QRepairman, repairman_)
+            yield self.factory_state.get_environment().process(repairman.repair_machine(machine))
+            self.factory_state.get_repairman_store().put(repairman)
+
+        while True:
+            for machine in self.factory_state.get_all_machines():
+                if machine.machine_state.state == "broken":
+                    self.factory_state.get_environment().process(repair_p(machine))
+
+            yield self.factory_state.get_environment().timeout(1)
+
+    def start_machine_p(self):
+        """
+        Process the machines in the factory and log the event.
+        This method can be extended to include specific machine processing logic.
+        """
+
+        for machine in self.factory_state.get_all_machines():
+            self.factory_state.get_environment().process(machine.produce_p(1000))
+            self.factory_state.add_log(
+                timestamp=self.factory_state.get_environment().now,
+                message=f"Machine {machine.machine_state.name} started in factory {self.factory_state.name}",
+            )
+        yield self.factory_state.get_environment().timeout(0)
+
+    def run_p(self):
+
+        self.factory_state.get_environment().process(self.start_machine_p())
+        self.factory_state.get_environment().process(self.start_monitor_p())
+        yield self.factory_state.get_environment().timeout(0)
+
+        # self.factory_state.get_environment().process(self.start_monitor())
+        # yield self.factory_state.get_environment().timeout(0)

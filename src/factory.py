@@ -214,7 +214,7 @@ class QFactory:
         if log:
             self.factory_state.add_log(
                 timestamp=self.factory_state.get_environment().now,
-                message=f"Machine {machine.machine_state.name} added to factory {self.factory_state.name}",
+                message=f"Machine {machine.machine_state.name} added to factory",
             )
 
     def remove_machine(self, machine: QMachine, log: bool = True):
@@ -235,7 +235,7 @@ class QFactory:
         if log:
             self.factory_state.add_log(
                 timestamp=self.factory_state.get_environment().now,
-                message=f"Repairman {repairman.repairman_state.name} added to factory {self.factory_state.name}",
+                message=f"Repairman {repairman.repairman_state.name} added to factory",
             )
 
     def remove_repairman(self, repairman: QRepairman):
@@ -247,7 +247,7 @@ class QFactory:
         self.factory_state.get_repairman_store().items.remove(repairman)
         self.factory_state.add_log(
             timestamp=self.factory_state.get_environment().now,
-            message=f"Repairman {repairman.repairman_state.name} removed from factory {self.factory_state.name}",
+            message=f"Repairman {repairman.repairman_state.name} removed from factory",
         )
 
     def start_monitor_p(self):
@@ -282,7 +282,7 @@ class QFactory:
                 if machine.machine_state.state == "broken":
                     self.factory_state.add_log(
                         timestamp=self.factory_state.get_environment().now,
-                        message=f"Machine {machine.machine_state.name} is broken in factory {self.factory_state.name}, issuing repair",
+                        message=f"Machine {machine.machine_state.name} is broken in factory, issuing repair",
                     )
                     self.factory_state.get_environment().process(repair_p(machine))
 
@@ -298,7 +298,7 @@ class QFactory:
             self.factory_state.get_environment().process(machine.produce_p(1000))
             self.factory_state.add_log(
                 timestamp=self.factory_state.get_environment().now,
-                message=f"Machine {machine.machine_state.name} started in factory {self.factory_state.name}",
+                message=f"Machine {machine.machine_state.name} started in factory",
             )
         yield self.factory_state.get_environment().timeout(0)
 

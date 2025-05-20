@@ -277,7 +277,7 @@ class QMachine:
             self.logs.append(
                 QMachine.QMachineLog(
                     timestamp=self._environment.now,
-                    message=f"Machine {self.name} Factory set to {factory.factory_state.name}",
+                    message=f"Factory set to {factory.factory_state.name}",
                 )
             )
 
@@ -426,11 +426,16 @@ class QMachine:
         if not self.machine_state.is_state("idle"):
             self.machine_state.add_log(
                 timestamp=self.machine_state.get_environment().now,
-                message=f"Machine {self.machine_state.name} is not idle, cannot produce parts.",
+                message="Machine is not idle, cannot produce parts.",
             )
             return
 
         self.machine_state.parts_pending = parts_to_produce
+
+        self.machine_state.add_log(
+            timestamp=self.machine_state.get_environment().now,
+            message=f"Starting production of {parts_to_produce} parts.",
+        )
 
         for _ in range(parts_to_produce):
 
@@ -451,6 +456,7 @@ class QMachine:
                 return
 
         self.machine_state.set_state("idle")
+
         return
 
     def restart(self):

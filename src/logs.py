@@ -91,10 +91,11 @@ class QSimulationLog(BaseModel):
 
         factory_logs = {factory.factory_state.name: list(factory.factory_state.logs)}
         machine_logs = {
-            m.machine_state.name: list(m.machine_state.logs) for m in factory.factory_state.get_all_machines()
+            m.machine_state.name: list(m.machine_state.logs) for m in factory.factory_state.get_machine_store().items
         }
         repairman_logs = {
-            r.repairman_state.name: list(r.repairman_state.logs) for r in factory.factory_state.get_all_repairmen()
+            r.repairman_state.name: list(r.repairman_state.logs)
+            for r in factory.factory_state.get_repairman_store().items
         }
 
         return cls(

@@ -17,18 +17,24 @@ def test_factory(duration: int = 36000):
         name="TestFactory",
         machines=[
             QMachine.QMachineConfig(
-                name="M1", state="idle", mean_operation_time=1200.0, sigma=1.0, mttf=7200.0, fixed_time=True
+                name="M1", state="idle", mean_operation_time=1200.0, sigma=1.0, mttf=4 * 60 * 60, fixed_time=True
             ),
-            # QMachine.QMachineConfig(
-            #     name="M2", state="idle", mean_operation_time=1200.0, sigma=1.0, mttf=7200.0, fixed_time=True
-            # ),
+            QMachine.QMachineConfig(
+                name="M2", state="idle", mean_operation_time=600.0, sigma=1.0, mttf=3 * 60 * 60, fixed_time=True
+            ),
+            QMachine.QMachineConfig(
+                name="M3", state="idle", mean_operation_time=300.0, sigma=1.0, mttf=2 * 60 * 60, fixed_time=True
+            ),
         ],
-        repairman=[QRepairman.QRepairmanConfig(name="R1", time_to_repair=300, downtime=60)],
+        repairman=[
+            QRepairman.QRepairmanConfig(name="R1", time_to_repair=300, downtime=60),
+            QRepairman.QRepairmanConfig(name="R2", time_to_repair=300, downtime=60),
+        ],
     )
     factory = QFactory.from_config(env, config)
 
-    factory.run()
-    env.run(duration)
+    factory.run(500)
+    env.run(10000)
 
     sim_log = QSimulationLog.from_factory(
         launch_timestamp=env.simulation_period,

@@ -196,6 +196,15 @@ class QRepairman:
         Yields:
             simpy.events.Timeout: An event representing the repair duration and downtime.
         """
+        if not self.repairman_state.is_state("idle"):
+            self.repairman_state.logs.append(
+                QLogEntry(
+                    timestamp=self.repairman_state.get_environment().get_timestamp_now(),
+                    message=f"Repairman {self.repairman_state.name} is busy, cannot repair machine {machine.machine_state.name}",
+                )
+            )
+            return
+
         if machine.machine_state.is_state("broken"):
             machine.machine_state.set_state("repair")
             self.repairman_state.set_state("working")
@@ -220,7 +229,7 @@ class QRepairman:
                     message=f"Repair completed work on machine {machine.machine_state.name}",
                 )
             )
-            machine.restart()
+            self.repairman_state.set_state("idle")
         else:
             self.repairman_state.logs.append(
                 QLogEntry(
@@ -229,12 +238,3 @@ class QRepairman:
                 )
             )
         yield self.repairman_state.get_environment().timeout(self.repairman_state.downtime)
-
-        if not self.repairman_state.is_state("idle"):
-            self.repairman_state.set_state("idle")
-            self.repairman_state.logs.append(
-                QLogEntry(
-                    timestamp=self.repairman_state.get_environment().get_timestamp_now(),
-                    message="Repairman is now idle",
-                )
-            )

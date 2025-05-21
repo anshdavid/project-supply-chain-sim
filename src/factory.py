@@ -257,14 +257,14 @@ class QFactory:
             repairman = cast(QRepairman, repairman_)
             self.factory_state.logs.append(
                 QLogEntry(
-                    timestamp=self.factory_state.get_environment().now,
+                    timestamp=self.factory_state.get_environment().get_timestamp_now(),
                     message=f"Repairman {repairman.repairman_state.name} is repairing machine {machine.machine_state.name}",
                 )
             )
             yield self.factory_state.get_environment().process(repairman.repair_machine_p(machine))
             self.factory_state.logs.append(
                 QLogEntry(
-                    timestamp=self.factory_state.get_environment().now,
+                    timestamp=self.factory_state.get_environment().get_timestamp_now(),
                     message=f"Repairman {repairman.repairman_state.name} finished repairing machine {machine.machine_state.name}",
                 )
             )
@@ -275,7 +275,7 @@ class QFactory:
                 if machine.machine_state.state == "broken":
                     self.factory_state.logs.append(
                         QLogEntry(
-                            timestamp=self.factory_state.get_environment().now,
+                            timestamp=self.factory_state.get_environment().get_timestamp_now(),
                             message=f"Machine {machine.machine_state.name} is broken in factory, issuing repair",
                         )
                     )
@@ -293,7 +293,7 @@ class QFactory:
             self.factory_state.get_environment().process(machine.produce_p(1000))
             self.factory_state.logs.append(
                 QLogEntry(
-                    timestamp=self.factory_state.get_environment().now,
+                    timestamp=self.factory_state.get_environment().get_timestamp_now(),
                     message=f"Machine {machine.machine_state.name} started in factory",
                 )
             )

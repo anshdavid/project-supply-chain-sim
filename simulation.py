@@ -1,4 +1,6 @@
 import json
+from datetime import datetime, timezone
+
 from src.factory import QFactory
 from src.environment import QEnvironment
 from src.logs import QSimulationLog
@@ -8,7 +10,9 @@ from src.repairman import QRepairman
 
 def test_factory(duration: int = 10000):
 
-    env = QEnvironment()
+    current_time = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+    env = QEnvironment(current_time)
     config = QFactory.QFactoryConfig(
         name="TestFactory",
         machines=[QMachine.QMachineConfig(name="M1", state="idle", mean_operation_time=5.0, sigma=1.0, mttf=200.0)],
@@ -20,10 +24,11 @@ def test_factory(duration: int = 10000):
     env.run(duration)
 
     sim_log = QSimulationLog.from_factory(
+        launch_timestamp=env.simulation_period,
+        simulation_duration=duration,
+        simulation_runtime=env.now,
+        description="Simulation log",
         factory=factory,
-        duration=duration,
-        message="Simulation log",
-        data={"additional_info": "This is a test simulation log"},
     )
 
     with open(r"/app/logs/simlog_log.json", "w", encoding="utf-8") as f:

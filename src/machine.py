@@ -341,7 +341,7 @@ class QMachine:
         if not self.machine_state.is_state("idle"):
             self.machine_state.logs.append(
                 QLogEntry(
-                    timestamp=self.machine_state.get_environment().now,
+                    timestamp=self.machine_state.get_environment().get_timestamp_now(),
                     message=f"Cannot produce parts while in state {self.machine_state.get_state()}",
                 )
             )
@@ -351,7 +351,7 @@ class QMachine:
 
         self.machine_state.logs.append(
             QLogEntry(
-                timestamp=self.machine_state.get_environment().now,
+                timestamp=self.machine_state.get_environment().get_timestamp_now(),
                 message=f"Starting production of {parts_to_produce} parts.",
             )
         )
@@ -365,7 +365,7 @@ class QMachine:
 
             self.machine_state.logs.append(
                 QLogEntry(
-                    timestamp=self.machine_state.get_environment().now,
+                    timestamp=self.machine_state.get_environment().get_timestamp_now(),
                     duration=ttp,
                     type_="Task",
                     message=f"Starting production of part {i + 1}",
@@ -374,7 +374,7 @@ class QMachine:
 
             self.machine_state.set_state("working")
             self.machine_state.logs.append(
-                QLogEntry(timestamp=self.machine_state.get_environment().now, message="working")
+                QLogEntry(timestamp=self.machine_state.get_environment().get_timestamp_now(), message="working")
             )
 
             yield self.event_failure | self.event_production
@@ -383,14 +383,16 @@ class QMachine:
                 self.machine_state.update_parts_produced(+1)
                 self.machine_state.update_parts_pending(-1)
                 self.machine_state.logs.append(
-                    QLogEntry(timestamp=self.machine_state.get_environment().now, message="finished task")
+                    QLogEntry(
+                        timestamp=self.machine_state.get_environment().get_timestamp_now(), message="finished task"
+                    )
                 )
 
             elif self.event_failure.processed:
                 self.machine_state.set_state("broken")
                 self.machine_state.logs.append(
                     QLogEntry(
-                        timestamp=self.machine_state.get_environment().now,
+                        timestamp=self.machine_state.get_environment().get_timestamp_now(),
                         message=f"broken after {self.machine_state.get_timeout_to_failure()}",
                     )
                 )
@@ -399,7 +401,9 @@ class QMachine:
 
         self.machine_state.set_state("idle")
         self.machine_state.logs.append(
-            QLogEntry(timestamp=self.machine_state.get_environment().now, message="idle after production")
+            QLogEntry(
+                timestamp=self.machine_state.get_environment().get_timestamp_now(), message="idle after production"
+            )
         )
 
         return
@@ -419,12 +423,13 @@ class QMachine:
         if self.machine_state.parts_pending > 0:
             self.machine_state.logs.append(
                 QLogEntry(
-                    timestamp=self.machine_state.get_environment().now, message="restarted and resuming production"
+                    timestamp=self.machine_state.get_environment().get_timestamp_now(),
+                    message="restarted and resuming production",
                 )
             )
             self.machine_state.get_environment().process(self.produce_p(self.machine_state.parts_pending))
             return
 
         self.machine_state.logs.append(
-            QLogEntry(timestamp=self.machine_state.get_environment().now, message="restarted and idle")
+            QLogEntry(timestamp=self.machine_state.get_environment().get_timestamp_now(), message="restarted and idle")
         )

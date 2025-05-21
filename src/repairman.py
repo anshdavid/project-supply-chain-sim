@@ -205,6 +205,14 @@ class QRepairman:
                     message=f"Repairman started work on machine {machine.machine_state.name}",
                 )
             )
+            self.repairman_state.logs.append(
+                QLogEntry(
+                    timestamp=self.repairman_state.get_environment().get_timestamp_now(),
+                    duration=self.repairman_state.time_to_repair,
+                    type_="Task",
+                    message=f"Repair {machine.machine_state.name}",
+                )
+            )
             yield self.repairman_state.get_environment().timeout(self.repairman_state.time_to_repair)
             self.repairman_state.logs.append(
                 QLogEntry(

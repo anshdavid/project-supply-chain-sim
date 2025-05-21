@@ -251,6 +251,13 @@ class QFactory:
             Args:
                 machine (QMachine): The machine to repair.
             """
+
+            self.factory_state.logs.append(
+                QLogEntry(
+                    timestamp=self.factory_state.get_environment().get_timestamp_now(),
+                    message=f"Machine {machine.machine_state.name} is broken in factory, issuing repair",
+                )
+            )
             repairman_ = yield self.factory_state.get_repairman_store().get(
                 lambda repairman: repairman.repairman_state.is_state("idle")
             )
@@ -268,17 +275,11 @@ class QFactory:
                     message=f"Repairman {repairman.repairman_state.name} finished repairing machine {machine.machine_state.name}",
                 )
             )
-            self.factory_state.get_repairman_store().put(repairman)
+            self.factory_state.get_repairman_store().put(repairman_)
 
         while True:
             for machine in self.factory_state.get_all_machines():
                 if machine.machine_state.state == "broken":
-                    self.factory_state.logs.append(
-                        QLogEntry(
-                            timestamp=self.factory_state.get_environment().get_timestamp_now(),
-                            message=f"Machine {machine.machine_state.name} is broken in factory, issuing repair",
-                        )
-                    )
                     self.factory_state.get_environment().process(repair_p(machine))
 
             yield self.factory_state.get_environment().timeout(1)

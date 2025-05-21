@@ -8,15 +8,22 @@ from src.machine import QMachine
 from src.repairman import QRepairman
 
 
-def test_factory(duration: int = 10000):
+def test_factory(duration: int = 36000):
 
     current_time = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
     env = QEnvironment(current_time)
     config = QFactory.QFactoryConfig(
         name="TestFactory",
-        machines=[QMachine.QMachineConfig(name="M1", state="idle", mean_operation_time=5.0, sigma=1.0, mttf=200.0)],
-        repairman=[QRepairman.QRepairmanConfig(name="R1", time_to_repair=5, downtime=1)],
+        machines=[
+            QMachine.QMachineConfig(
+                name="M1", state="idle", mean_operation_time=1200.0, sigma=1.0, mttf=7200.0, fixed_time=True
+            ),
+            # QMachine.QMachineConfig(
+            #     name="M2", state="idle", mean_operation_time=1200.0, sigma=1.0, mttf=7200.0, fixed_time=True
+            # ),
+        ],
+        repairman=[QRepairman.QRepairmanConfig(name="R1", time_to_repair=300, downtime=60)],
     )
     factory = QFactory.from_config(env, config)
 

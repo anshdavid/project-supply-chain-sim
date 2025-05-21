@@ -21,8 +21,5 @@ class QEnvironment(simpy.Environment):
             int: The current timestamp in milliseconds.
         """
 
-        def to_milint(x, y) -> int:
-            stamp_ = datetime.fromisoformat(x).timestamp() + y
-            return int(stamp_ * 1000)
-
-        return to_milint(self.simulation_period, self.now)
+        stamp_ = datetime.fromisoformat(self.simulation_period).timestamp() + self.now
+        return int(stamp_ * 1000)

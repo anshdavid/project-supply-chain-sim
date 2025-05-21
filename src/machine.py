@@ -25,8 +25,10 @@ Dependencies:
 from __future__ import annotations
 
 import random
+import sys
 from typing import Literal, TYPE_CHECKING
 
+from ipywidgets import fixed
 from pydantic import BaseModel, Field, PrivateAttr
 
 from src.environment import QEnvironment
@@ -117,6 +119,7 @@ class QMachine:
         mean_operation_time: float = Field(description="Mean time per part", gt=0)
         sigma: float = Field(..., description="Standard deviation in operation time")
         mttf: float = Field(description="Mean Time to Failures", gt=0)
+        fixed_time: bool = Field(default=True, description="Use fixed time for production and failure events")
 
     class QMachineState(BaseModel):
         """
@@ -144,6 +147,8 @@ class QMachine:
         mttf: float = Field(description="Mean Time to Failures", gt=0)
         parts_produced: int = Field(default=0, description="Total parts produced by the machine")
         parts_pending: int = Field(default=0, description="Pending parts to be produced")
+        fixed_time: bool = Field(default=True, description="Use fixed time for production and failure events")
+
         logs: list[QLogEntry] = []
 
         timeout_failure: float = Field(default=0, description="Timeout event for failure")
@@ -315,7 +320,7 @@ class QMachine:
         self.machine_state.set_environment(env)
         self.machine_state.set_state("idle")
 
-        ttf = calculate_timeout_to_failure(self.machine_state.mttf, fixed_time=False)
+        ttf = calculate_timeout_to_failure(self.machine_state.mttf, fixed_time=self.machine_state.fixed_time)
         self.machine_state.set_timeout_to_failure(ttf)
         self.event_failure = self.machine_state.get_environment().timeout(ttf)
         self.event_production = self.machine_state.get_environment().timeout(0)
@@ -358,19 +363,20 @@ class QMachine:
 
         for i in range(parts_to_produce):
             ttp = calculate_timeout_to_produce(
-                self.machine_state.mean_operation_time, self.machine_state.sigma, fixed_time=False
+                self.machine_state.mean_operation_time,
+                self.machine_state.sigma,
+                fixed_time=self.machine_state.fixed_time,
             )
             self.machine_state.set_timeout_to_produce(ttp)
             self.event_production = self.machine_state.get_environment().timeout(ttp)
 
-            self.machine_state.logs.append(
-                QLogEntry(
-                    timestamp=self.machine_state.get_environment().get_timestamp_now(),
-                    duration=ttp,
-                    type_="Task",
-                    message=f"Starting production of part {i + 1}",
-                )
+            current_task = QLogEntry(
+                timestamp=self.machine_state.get_environment().get_timestamp_now(),
+                duration=ttp,
+                type_="Task",
+                message=f"Starting production of part {i + 1}",
             )
+            self.machine_state.logs.append(current_task)
 
             self.machine_state.set_state("working")
             self.machine_state.logs.append(
@@ -389,6 +395,7 @@ class QMachine:
                 )
 
             elif self.event_failure.processed:
+
                 self.machine_state.set_state("broken")
                 self.machine_state.logs.append(
                     QLogEntry(
@@ -396,6 +403,10 @@ class QMachine:
                         message=f"broken after {self.machine_state.get_timeout_to_failure()}",
                     )
                 )
+
+                current_task.duration = (
+                    self.machine_state.get_environment().get_timestamp_now() - current_task.timestamp
+                ) / 1000
 
                 return
 

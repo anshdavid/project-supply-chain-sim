@@ -1,3 +1,26 @@
+"""
+repairman.py
+------------
+Defines the QRepairman class for modeling repairman agents in a factory simulation.
+
+Features:
+    - QRepairman: Simulates a repairman responsible for repairing machines.
+    - QRepairmanConfig: Configuration schema for initializing a repairman.
+    - QRepairmanState: Tracks the current state, statistics, and logs of the repairman.
+    - Methods for state management, environment/factory association, and repair process simulation.
+
+Usage:
+    - Use QRepairman.from_config() or QRepairman.__init__() to create a repairman.
+    - Use repair_machine_p() to simulate the repair process for a machine.
+
+Dependencies:
+    - pydantic: For configuration and state models.
+    - src.environment.QEnvironment: The simulation environment.
+    - src.factory.QFactory: The factory context (referenced via TYPE_CHECKING).
+    - src.machine.QMachine: The machine to be repaired (referenced via TYPE_CHECKING).
+    - src.logs.QLogEntry: Base class for log entries.
+"""
+
 from __future__ import annotations
 from typing import Literal, TYPE_CHECKING
 
@@ -15,11 +38,25 @@ class QRepairman:
     """
     QRepairman models a repairman entity responsible for repairing machines in the simulation.
     Contains configuration, state, and logging for repairman activities.
+
+    Responsibilities:
+        - Tracks repairman state, repair and downtime durations, and logs.
+        - Integrates with QFactory and QEnvironment.
+        - Simulates the repair process for machines.
+
+    Inner Classes:
+        QRepairmanConfig: Configuration schema for initializing a repairman.
+        QRepairmanState: Tracks the current state, statistics, and logs of the repairman.
+
+    Methods:
+        from_config(env, config): Instantiate a QRepairman from a configuration object.
+        repair_machine_p(machine): Simulate the repair process for a machine.
     """
 
     class QRepairmanConfig(BaseModel):
         """
-        Schema for configuring a repairman.
+        Configuration schema for a QRepairman.
+
         Attributes:
             name (str): Name of the repairman.
             time_to_repair (float): Time required to repair a machine (must be > 0, <= 1000).
@@ -32,19 +69,14 @@ class QRepairman:
 
     class QRepairmanState(BaseModel):
         """
-        Tracks the current state and statistics of the repairman.
+        Tracks the current state, statistics, and logs of the repairman.
+
         Attributes:
             name (str): Name of the repairman.
             time_to_repair (float): Time required to repair a machine.
             downtime (float): Downtime for the repairman.
             state (Literal): Current state ('idle' or 'working').
-            logs (list): List of QRepairmanLog entries.
-        Methods:
-            set_state(state): Set the repairman's state.
-            get_state(): Get the current state.
-            get_environment(): Get the associated environment.
-            get_factory(): Get the associated factory.
-            add_log(...): Add a log entry.
+            logs (list[QLogEntry]): List of log entries for the repairman.
         """
 
         name: str = Field(description="Name of the repairman")
@@ -68,11 +100,6 @@ class QRepairman:
             if state not in ["idle", "working"]:
                 raise ValueError("Invalid state")
             self.state = state
-            self.add_log(
-                timestamp=self._environment.now,
-                message=f"Repairman state changed to {state}",
-                data={"repairman": self.name, "state": state},
-            )
 
         def get_state(self) -> Literal["idle", "working"]:
             """
@@ -115,11 +142,6 @@ class QRepairman:
                 factory (QFactory): The factory object to associate.
             """
             self._factory = factory
-            self.add_log(
-                timestamp=self._environment.now,
-                message=f"Repairman {self.name} associated with factory {factory.factory_state.name}",
-                data={"repairman": self.name, "factory": factory.factory_state.name},
-            )
 
         def get_factory(self) -> QFactory | None:
             """
@@ -129,21 +151,10 @@ class QRepairman:
             """
             return self._factory
 
-        def add_log(self, timestamp: float, message: str, data: dict | None = None):
-            """
-            Add a log entry to the repairman's log list.
-            Args:
-                timestamp (float): Simulation time of the log entry.
-                message (str): Log message.
-                data (dict, optional): Additional data for the log entry.
-            """
-            log_entry = QLogEntry(timestamp=timestamp, message=message, data=data or {})
-            self.logs.append(log_entry)
-
     @classmethod
     def from_config(cls, env: QEnvironment, config: QRepairman.QRepairmanConfig) -> QRepairman:
         """
-        Creates a QRepairman instance from a configuration object.
+        Create a QRepairman instance from a configuration object.
 
         Args:
             env (QEnvironment): The environment in which the repairman operates.
@@ -181,32 +192,41 @@ class QRepairman:
         If the machine is broken, set its state to 'repair', set the repairman to 'working',
         log the repair start, wait for the repair time, then set both to 'idle', log completion, and restart the machine.
         Args:
-            env (QEnvironment): The simulation environment.
             machine (QMachine): The machine to be repaired.
         Yields:
-            simpy.events.Timeout: An event representing the repair duration.
+            simpy.events.Timeout: An event representing the repair duration and downtime.
         """
         if machine.machine_state.is_state("broken"):
             machine.machine_state.set_state("repair")
             self.repairman_state.set_state("working")
-            self.repairman_state.add_log(
-                timestamp=self.repairman_state.get_environment().now,
-                message=f"Repairman started on machine {machine.machine_state.name}",
-                data={"machine": machine.machine_state.name, "repairman": self.repairman_state.name},
+            self.repairman_state.logs.append(
+                QLogEntry(
+                    timestamp=self.repairman_state.get_environment().now,
+                    message=f"Repairman started work on machine {machine.machine_state.name}",
+                )
             )
             yield self.repairman_state.get_environment().timeout(self.repairman_state.time_to_repair)
-            self.repairman_state.add_log(
-                timestamp=self.repairman_state.get_environment().now,
-                message=f"Repair completed on machine {machine.machine_state.name}",
-                data={"machine": machine.machine_state.name, "repairman": self.repairman_state.name},
+            self.repairman_state.logs.append(
+                QLogEntry(
+                    timestamp=self.repairman_state.get_environment().now,
+                    message=f"Repair completed work on machine {machine.machine_state.name}",
+                )
             )
             machine.restart()
         else:
-            self.repairman_state.add_log(
-                timestamp=self.repairman_state.get_environment().now,
-                message=f"Machine {machine.machine_state.name} is not broken, no repair needed",
-                data={"machine": machine.machine_state.name, "repairman": self.repairman_state.name},
+            self.repairman_state.logs.append(
+                QLogEntry(
+                    timestamp=self.repairman_state.get_environment().now,
+                    message=f"Machine {machine.machine_state.name} is not broken, no repair needed",
+                )
             )
         yield self.repairman_state.get_environment().timeout(self.repairman_state.downtime)
+
         if not self.repairman_state.is_state("idle"):
             self.repairman_state.set_state("idle")
+            self.repairman_state.logs.append(
+                QLogEntry(
+                    timestamp=self.repairman_state.get_environment().now,
+                    message="Repairman is now idle",
+                )
+            )

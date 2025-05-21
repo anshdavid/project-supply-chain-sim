@@ -96,6 +96,14 @@
                     chart.zoomOut(1.25);
                 }
             });
+
+            chart.splitterPosition("10%");
+
+            // Prevent user from dragging splitter
+            chart.listen("splitterChange", function (e) {
+                e.preventDefault();
+                chart.splitterPosition("10%");
+            });
         });
 
         // These functions are now in the global scope

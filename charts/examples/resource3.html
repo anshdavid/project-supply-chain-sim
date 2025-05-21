@@ -17,7 +17,7 @@
         }
 
         #wrapper {
-            max-width: 90%;
+            max-width: 80%;
             margin: 0 auto;
         }
 
@@ -73,6 +73,12 @@
             periods.normal().stroke("#455a64");
             periods.selected().stroke("#dd2c00");
 
+            chart.splitterPosition("10%");
+            chart.listen("splitterChange", function (e) {
+                e.preventDefault();
+                chart.splitterPosition("10%");
+            });
+
             chart.draw();
 
             // Add zoom on mouse wheel (once)
@@ -127,7 +133,6 @@
 
                 const treeData = anychart.data.tree(data, "as-tree");
                 chart.data(treeData);
-                chart.splitterPosition("20%");
                 chart.fitAll(); // re-center and re-zoom based on new data
             };
 

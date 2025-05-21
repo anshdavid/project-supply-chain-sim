@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta content="IE=edge" http-equiv="X-UA-Compatible">
+    <meta content="width=device-width, initial-scale=1" name="viewport">
+    <link href="https://cdn.anychart.com/releases/8.13.0/css/anychart-ui.min.css" rel="stylesheet" type="text/css">
+    <style>
+        html,
+        body {
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            font-family: sans-serif;
+        }
+
+        #wrapper {
+            max-width: 80%;
+            margin: 0 auto;
+        }
+
+        h1 {
+            text-align: center;
+            margin: 20px 0 10px 0;
+            font-size: 2rem;
+        }
+
+        #uploadSection {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 10px;
+        }
+
+        #fileInput {
+            margin-left: 10px;
+        }
+
+        #container {
+            width: 100%;
+            height: 600px;
+            border: 1px solid #ccc;
+        }
+    </style>
+</head>
+
+
+
+<body>
+    <script src="https://cdn.anychart.com/releases/8.13.0/js/anychart-core.min.js"></script>
+    <script src="https://cdn.anychart.com/releases/8.13.0/js/anychart-gantt.min.js"></script>
+    <div id="wrapper">
+        <h1>QUAESTOR</h1>
+
+        <div id="uploadSection">
+            <label for="fileInput">Upload Log File:</label>
+            <input type="file" id="fileInput" accept=".log,.txt">
+        </div>
+
+        <div id="container"></div>
+    </div>
+
+    <script>
+        var chart;
+
+        document.getElementById("fileInput").addEventListener("change", function (e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function (event) {
+                const content = event.target.result;
+                console.log("Uploaded Log Content:\n", content);
+                // TODO: You can parse and visualize the log content here
+            };
+            reader.readAsText(file);
+        });
+
+        anychart.onDocumentReady(function () {
+            var data = [
+                {
+                    id: "1",
+                    name: "Server 1",
+                    periods: [
+                        { id: "1_1", start: "2018-01-05", end: "2018-01-25" },
+                        { id: "1_2", start: "2018-01-28", end: "2018-02-22" },
+                        { id: "1_3", start: "2018-03-03", end: "2018-03-25" }
+                    ]
+                },
+                {
+                    id: "2",
+                    name: "Server 2",
+                    periods: [
+                        { id: "2_1", start: "2018-01-07", end: "2018-02-15" },
+                        { id: "2_2", start: "2018-02-26", end: "2018-03-20" }
+                    ]
+                },
+                {
+                    id: "3",
+                    name: "Server 3",
+                    periods: [
+                        { id: "3_1", start: "2018-01-04", end: "2018-03-25" }
+                    ]
+                }
+            ];
+
+            var treeData = anychart.data.tree(data, "as-tree");
+
+            chart = anychart.ganttResource();
+            chart.data(treeData);
+
+            var periods = chart.getTimeline().periods();
+            periods.normal().fill("#455a64 0.5");
+            periods.selected().fill("#dd2c00");
+            periods.normal().stroke("#455a64");
+            periods.selected().stroke("#dd2c00");
+
+            chart.container("container");
+            chart.draw();
+            chart.fitAll();
+
+            // Mouse wheel zoom
+            document.getElementById("container").addEventListener("wheel", function (e) {
+                e.preventDefault();
+                if (e.deltaY < 0) {
+                    chart.zoomIn(1.25);
+                } else {
+                    chart.zoomOut(1.25);
+                }
+            });
+
+            chart.splitterPosition("10%");
+            chart.listen("splitterChange", function (e) {
+                e.preventDefault();
+                chart.splitterPosition("10%");
+            });
+        });
+    </script>
+</body>
+
+</html>

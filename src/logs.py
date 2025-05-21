@@ -11,13 +11,12 @@ Classes:
 from __future__ import annotations
 
 from typing import Literal, TYPE_CHECKING
-from pydantic import BaseModel, Field
 import datetime
+
+from pydantic import BaseModel, Field
 
 if TYPE_CHECKING:
     from src.factory import QFactory
-    from src.machine import QMachine
-    from src.repairman import QRepairman
 
 
 class QLogEntry(BaseModel):
@@ -26,7 +25,7 @@ class QLogEntry(BaseModel):
 
     Attributes:
         timestamp (float | str): The simulation time when the log entry was created, or UTC ISO8601 timestamp.
-        duration (float): Duration of the event or task (default: 0).
+        duration (float): Duration of the simulation event, 0 if {"type_" = "Event"}, > 0 if {"type_" = "Task"}.
         type_ (Literal["Event", "Task"]): Type of log entry (default: "Event").
         message (str): The log message describing the event or task.
         data (dict): Optional additional data related to the log event (default: empty dict).

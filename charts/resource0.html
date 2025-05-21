@@ -1,0 +1,256 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta content="IE=edge" http-equiv="X-UA-Compatible">
+    <meta content="width=device-width, initial-scale=1" name="viewport">
+    <title>anychart.charts.Resource.splitterStroke</title>
+    <link href="https://playground.anychart.com/api/charts/_samples/anychart.charts.Resource.splitterStroke/iframe"
+        rel="canonical">
+    <meta content="Project Management,Resource Chart" name="keywords">
+    <meta content="AnyChart - JavaScript Charts designed to be embedded and integrated" name="description">
+    <!--[if lt IE 9]>
+<script src="https://oss.maxcdn.com/html5shiv/3.7.3/html5shiv.min.js"></script>
+<script src="https://oss.maxcdn.com/respond/1.4.2/respond.min.js"></script>
+<![endif]-->
+    <link href="https://cdn.anychart.com/releases/8.13.0/css/anychart-ui.min.css" rel="stylesheet" type="text/css">
+    <style>
+        html,
+        body,
+        #container {
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            padding: 0;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="container"></div>
+    <script src="https://cdn.anychart.com/releases/8.13.0/js/anychart-base.min.js"></script>
+    <script src="https://cdn.anychart.com/releases/8.13.0/js/anychart-resource.min.js"></script>
+    <script src="https://cdn.anychart.com/releases/8.13.0/js/anychart-exports.min.js"></script>
+    <script src="https://cdn.anychart.com/releases/8.13.0/js/anychart-ui.min.js"></script>
+    <script type="text/javascript">anychart.onDocumentReady(function () {
+            var data = getData();
+
+            var chart = anychart.resource();
+            chart.zoomLevel(1);
+            chart.data(data);
+
+            // Set splitter stroke.
+            chart.splitterStroke('#F44336', 2, '5 2');
+
+            chart.title('Set splitter stroke');
+            chart.container('container');
+            chart.draw();
+        });
+
+        function getData() {
+            return [
+                {
+                    name: 'Vasil Kiryienka',
+                    description: 'Rider',
+                    activities: [
+                        {
+                            name: 'World Championships',
+                            start: '2016-10-12',
+                            end: '2016-10-12'
+                        }
+                    ]
+                },
+                {
+                    name: 'Elia Viviani',
+                    description: 'Rider',
+                    activities: [
+                        {
+                            name: 'Paris - Tours',
+                            start: '2016-10-09',
+                            end: '2016-10-09',
+                            fill: ['#1A237E', '#FFFFFF', '#D50000']
+                        },
+                        {
+                            name: 'World Championships',
+                            start: '2016-10-16',
+                            end: '2016-10-16'
+                        },
+                        {
+                            name: 'Abu Dhabi Tour',
+                            start: '2016-10-20',
+                            end: '2016-10-23',
+                            fill: '#FFA000'
+                        }
+                    ]
+                },
+                {
+                    name: 'Ben Swift',
+                    description: 'Rider',
+                    activities: [
+                        {
+                            name: 'World Championships',
+                            start: '2016-10-09',
+                            end: '2016-10-09'
+                        },
+                        {
+                            name: 'World Championships',
+                            start: '2016-10-16',
+                            end: '2016-10-16'
+                        }
+                    ]
+                },
+                {
+                    name: 'Michal Kwiatkowski',
+                    description: 'Rider',
+                    activities: [
+                        {
+                            name: 'World Championships',
+                            start: '2016-10-09',
+                            end: '2016-10-09'
+                        },
+                        {
+                            name: 'Abu Dhabi Tour',
+                            start: '2016-10-20',
+                            end: '2016-10-23',
+                            fill: '#FFA000'
+                        }
+                    ]
+                },
+                {
+                    name: 'Alex Peters',
+                    description: 'Rider',
+                    activities: [
+                        {
+                            name: 'Japan Cup',
+                            start: '2016-10-23',
+                            end: '2016-10-23',
+                            fill: '#EF9A9A'
+                        }
+                    ]
+                },
+                {
+                    name: 'Ian Stannard',
+                    description: 'Rider',
+                    activities: [
+                        {
+                            name: 'Paris - Tours',
+                            start: '2016-10-09',
+                            end: '2016-10-09',
+                            fill: ['#1A237E', '#FFFFFF', '#D50000']
+                        },
+                        {
+                            name: 'World Championships',
+                            start: '2016-10-16',
+                            end: '2016-10-16'
+                        }
+                    ]
+                },
+                {
+                    name: 'Lars Petter Nordhaug',
+                    description: 'Rider',
+                    activities: [
+                        {
+                            name: 'Paris - Tours',
+                            start: '2016-10-09',
+                            end: '2016-10-09',
+                            fill: ['#1A237E', '#FFFFFF', '#D50000']
+                        },
+                        {
+                            name: 'Japan Cup',
+                            start: '2016-10-23',
+                            end: '2016-10-23',
+                            fill: '#EF9A9A'
+                        }
+                    ]
+                },
+                {
+                    name: 'Nicolas Roche',
+                    description: 'Rider',
+                    activities: [
+                        {
+                            name: 'World Championships',
+                            start: '2016-10-09',
+                            end: '2016-10-09'
+                        },
+                        {
+                            name: 'World Championships',
+                            start: '2016-10-12',
+                            end: '2016-10-12'
+                        },
+                        {
+                            name: 'Abu Dhabi Tour',
+                            start: '2016-10-20',
+                            end: '2016-10-23',
+                            fill: '#FFA000'
+                        }
+                    ]
+                },
+                {
+                    name: 'Geraint Thomas',
+                    description: 'Rider',
+                    activities: [
+                        {
+                            name: 'World Championships',
+                            start: '2016-10-09',
+                            end: '2016-10-09'
+                        },
+                        {
+                            name: 'World Championships',
+                            start: '2016-10-16',
+                            end: '2016-10-16'
+                        }
+                    ]
+                },
+                {
+                    name: 'Danny van Poppel',
+                    description: 'Rider',
+                    activities: [
+                        {
+                            name: 'World Championships',
+                            start: '2016-10-09',
+                            end: '2016-10-09'
+                        },
+                        {
+                            name: 'World Championships',
+                            start: '2016-10-16',
+                            end: '2016-10-16'
+                        },
+                        {
+                            name: 'Abu Dhabi Tour',
+                            start: '2016-10-20',
+                            end: '2016-10-23',
+                            fill: '#FFA000'
+                        }
+                    ]
+                },
+                {
+                    name: 'David Lopez',
+                    description: 'Rider',
+                    activities: [
+                        {
+                            name: 'Japan Cup',
+                            start: '2016-10-23',
+                            end: '2016-10-23',
+                            fill: '#EF9A9A'
+                        }
+                    ]
+                },
+                {
+                    name: 'Xabier Zandio',
+                    description: 'Rider',
+                    activities: [
+                        {
+                            name: 'Japan Cup',
+                            start: '2016-10-23',
+                            end: '2016-10-23',
+                            fill: '#EF9A9A'
+                        }
+                    ]
+                }
+            ];
+        }
+    </script>
+</body>
+
+</html>

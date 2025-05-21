@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta content="IE=edge" http-equiv="X-UA-Compatible" />
+    <meta content="width=device-width, initial-scale=1" name="viewport" />
+    <link href="https://cdn.anychart.com/releases/8.13.0/css/anychart-ui.min.css" rel="stylesheet" />
+    <style>
+        html,
+        body {
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            font-family: sans-serif;
+        }
+
+        #wrapper {
+            max-width: 80%;
+            margin: 0 auto;
+        }
+
+        h1 {
+            text-align: center;
+            margin: 20px 0 10px 0;
+            font-size: 2rem;
+        }
+
+        #uploadSection {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 10px;
+        }
+
+        #fileInput {
+            margin-left: 10px;
+        }
+
+        #container {
+            width: 100%;
+            height: 600px;
+            border: 1px solid #ccc;
+        }
+    </style>
+</head>
+
+<body>
+    <script src="https://cdn.anychart.com/releases/8.13.0/js/anychart-core.min.js"></script>
+    <script src="https://cdn.anychart.com/releases/8.13.0/js/anychart-gantt.min.js"></script>
+
+    <div id="wrapper">
+        <h1>QUAESTOR</h1>
+        <div id="uploadSection">
+            <label for="fileInput">Upload Log File:</label>
+            <input type="file" id="fileInput" accept=".log,.json" />
+        </div>
+        <div id="container"></div>
+    </div>
+
+    <script>
+        let chart;
+
+        anychart.onDocumentReady(function () {
+            // Initialize chart once
+            chart = anychart.ganttResource();
+            chart.container("container");
+
+            let periods = chart.getTimeline().periods();
+            periods.normal().fill("#455a64 0.5");
+            periods.selected().fill("#dd2c00");
+            periods.normal().stroke("#455a64");
+            periods.selected().stroke("#dd2c00");
+
+            chart.splitterPosition("10%");
+            chart.listen("splitterChange", function (e) {
+                e.preventDefault();
+                chart.splitterPosition("10%");
+            });
+
+            chart.draw();
+
+            // Add zoom on mouse wheel (once)
+            document.getElementById("container").addEventListener("wheel", function (e) {
+                e.preventDefault();
+                if (e.deltaY < 0) {
+                    chart.zoomIn(1.25);
+                } else {
+                    chart.zoomOut(1.25);
+                }
+            });
+
+            chart.data(anychart.data.tree([], "as-tree")); // initially empty
+            chart.fitAll();
+        });
+
+        document.getElementById("fileInput").addEventListener("change", function (e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function (event) {
+                const json = JSON.parse(event.target.result);
+                const data = [];
+
+                function convertLogs(logDict, entityType) {
+                    for (const entityName in logDict) {
+                        const periods = logDict[entityName]
+                            .filter(entry => entry.type_ === "Task" && entry.duration > 0)
+                            .map((entry, idx) => {
+                                const start = parseFloat(entry.timestamp);
+                                const end = start + parseFloat(entry.duration) * 1000; // Convert seconds to milliseconds
+                                return {
+                                    id: `${entityName}_${idx}`,
+                                    start: `${start}`,
+                                    end: `${end}`,
+                                    message: entry.message
+                                };
+                            });
+
+                        data.push({
+                            id: `${entityType}-${entityName}`,
+                            name: `${entityType}: ${entityName}`,
+                            periods: periods
+                        });
+                    }
+                }
+
+                convertLogs(json.factory_logs || {}, "Factory");
+                convertLogs(json.machine_logs || {}, "Machine");
+                convertLogs(json.repairman_logs || {}, "Repairman");
+
+                const treeData = anychart.data.tree(data, "as-tree");
+                chart.data(treeData);
+                chart.fitAll(); // re-center and re-zoom based on new data
+            };
+
+            reader.readAsText(file);
+        });
+    </script>
+</body>
+
+</html>

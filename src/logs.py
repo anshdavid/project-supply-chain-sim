@@ -107,3 +107,45 @@ class QSimulationLog(BaseModel):
             machine_logs=machine_logs,
             repairman_logs=repairman_logs,
         )
+
+    def anychart_dump(self) -> list:
+        nodes = []
+
+        # Helper to build node
+        def make_node(node_id, node_name, logs: list[QLogEntry]):
+            tasks = []
+            events = []
+            for idx, log in enumerate(logs):
+                if log.type_ == "Task":
+                    start = log.timestamp
+                    # duration is in seconds, convert to ms, add to timestamp, get end date
+                    end_ms = log.timestamp + int(log.duration * 1000)
+                    end = end_ms
+                    tasks.append({"id": f"{node_id}_task_{idx + 1}", "start": start, "end": end})
+                elif log.type_ == "Event":
+                    # Map message to marker type if you want, default to "diamond"
+                    marker_type = log.data.get("marker_type", "diamond")
+                    fill = log.data.get("fill", "#ffa000")
+                    events.append({"value": (log.timestamp), "type": marker_type, "fill": fill})
+
+            children = []
+            if tasks:
+                children.append({"id": f"{node_id}_tasks", "name": "Tasks", "periods": tasks})
+            if events:
+                children.append({"id": f"{node_id}_events", "name": "Events", "markers": events})
+
+            return {"id": node_id, "name": node_name, "children": children}
+
+        # Factory nodes
+        for factory, logs in dict(self.factory_logs).items():
+            nodes.append(make_node(factory, factory, logs))
+
+        # Machine nodes
+        for machine, logs in dict(self.machine_logs).items():
+            nodes.append(make_node(machine, machine, logs))
+
+        # Repairman nodes
+        for repairman, logs in dict(self.repairman_logs).items():
+            nodes.append(make_node(repairman, repairman, logs))
+
+        return nodes

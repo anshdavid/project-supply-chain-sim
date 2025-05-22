@@ -10,7 +10,9 @@ from src.repairman import QRepairman
 
 def test_factory(duration: int = 36000):
 
-    current_time = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    current_datetime = datetime.now(timezone.utc)
+    current_time = current_datetime.strftime("%Y-%m-%dT%H:%M:%SZ")
+    file_name = current_datetime.strftime("%Y-%m-%d-%H-%M-%S") + "_simlog.json"
 
     env = QEnvironment(current_time)
     config = QFactory.QFactoryConfig(
@@ -33,7 +35,7 @@ def test_factory(duration: int = 36000):
     )
     factory = QFactory.from_config(env, config)
 
-    factory.run(500)
+    factory.run(100)
     env.run(10000)
 
     sim_log = QSimulationLog.from_factory(
@@ -44,8 +46,12 @@ def test_factory(duration: int = 36000):
         factory=factory,
     )
 
-    with open(r"/app/logs/simlog_log.json", "w", encoding="utf-8") as f:
+    # with open(rf"/app/logs/{file_name}", "w", encoding="utf-8") as f:
+    with open(r"/app/logs/simlog.json", "w", encoding="utf-8") as f:
         json.dump(sim_log.model_dump(), f, indent=4)
+
+    with open(r"/app/logs/anychart_log.json", "w", encoding="utf-8") as f:
+        json.dump(sim_log.anychart_dump(), f, indent=4)
 
 
 if __name__ == "__main__":

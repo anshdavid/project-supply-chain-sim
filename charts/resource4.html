@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta content="IE=edge" http-equiv="X-UA-Compatible" />
+    <meta content="width=device-width, initial-scale=1" name="viewport" />
+    <link href="https://cdn.anychart.com/releases/8.13.0/css/anychart-ui.min.css" rel="stylesheet" />
+    <style>
+        html,
+        body {
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            font-family: sans-serif;
+        }
+
+        #wrapper {
+            max-width: 90%;
+            margin: 0 auto;
+        }
+
+        h1 {
+            text-align: center;
+            margin: 20px 0 10px 0;
+            font-size: 2rem;
+        }
+
+        #uploadSection {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 10px;
+        }
+
+        #fileInput {
+            margin-left: 10px;
+        }
+
+        #container {
+            width: 100%;
+            height: 600px;
+            border: 1px solid #ccc;
+        }
+    </style>
+</head>
+
+<body>
+    <script src="https://cdn.anychart.com/releases/8.13.0/js/anychart-core.min.js"></script>
+    <script src="https://cdn.anychart.com/releases/8.13.0/js/anychart-gantt.min.js"></script>
+    <div id="wrapper">
+        <h1>QUAESTOR</h1>
+        <div id="uploadSection">
+            <label for="fileInput">Upload Log File:</label>
+            <input type="file" id="fileInput" accept=".json" />
+        </div>
+        <div id="container"></div>
+    </div>
+    <script>
+        let chart;
+
+        document.getElementById("fileInput").addEventListener("change", function (e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function (event) {
+                // File should be an array in your Python anychart_dump format!
+                let data;
+                try {
+                    data = JSON.parse(event.target.result);
+                } catch (e) {
+                    alert("Invalid JSON file.");
+                    return;
+                }
+
+                // create a data tree
+                var treeData = anychart.data.tree(data, "as-tree");
+
+                // create a chart
+                chart = anychart.ganttResource();
+
+                // set the data
+                chart.data(treeData);
+
+                // configure markers
+                chart.getTimeline().markers().fill("#dd2c00");
+                chart.getTimeline().markers().stroke("black");
+
+                // set the container id
+                chart.container("container");
+
+                // initiate drawing the chart
+                chart.draw();
+
+                // fit elements to the width of the timeline
+                chart.fitAll();
+
+                // Enable zoom on mouse wheel
+                document.getElementById("container").addEventListener("wheel", function (e) {
+                    e.preventDefault();
+                    if (e.deltaY < 0) {
+                        chart.zoomIn(1.25);
+                    } else {
+                        chart.zoomOut(1.25);
+                    }
+                }, { passive: false });
+            };
+
+            reader.readAsText(file);
+        });
+    </script>
+</body>
+
+</html>

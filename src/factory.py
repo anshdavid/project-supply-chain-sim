@@ -193,12 +193,6 @@ class QFactory:
         """
         self.factory_state.get_repairman_store().items.append(repairman)
 
-    def start_monitor_p(self):
-        """
-        Monitor the factory's processes and log significant events.
-        This method can be extended to include specific monitoring logic.
-        """
-
     def start_monitor_machine_p(self, machine: QMachine):
         """
         Monitor a machine's state and log significant events.

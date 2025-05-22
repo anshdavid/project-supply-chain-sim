@@ -37,7 +37,7 @@ class QLogEntry(BaseModel):
 
     timestamp: int | float  # Accept both float (sim time) and str (UTC ISO8601)
     duration: int | float = Field(default=0, description="Duration of the log entry")
-    type_: Literal["Event", "Task"] = Field(default="Event", description="Type of log entry")
+    type_: Literal["Event", "Task", "Marker"] = Field(default="Event", description="Type of log entry")
     message: str = Field(description="Log message")
     data: dict = Field(default_factory=dict, description="Additional data related to the log")
 
@@ -73,6 +73,21 @@ class QLogEntry(BaseModel):
             QLogEntry: A log entry of type "Event".
         """
         return cls(timestamp=timestamp, duration=0, type_="Event", message=message, data=data or {})
+
+    @classmethod
+    def make_marker(cls, timestamp: int | float, message: str, data: dict | None = None) -> QLogEntry:
+        """
+        Create a log entry of type "Marker".
+
+        Args:
+            timestamp (int | float): The simulation time when the log entry was created.
+            message (str): The log message describing the marker.
+            data (dict, optional): Additional data related to the marker.
+
+        Returns:
+            QLogEntry: A log entry of type "Marker".
+        """
+        return cls(timestamp=timestamp, duration=0, type_="Marker", message=message, data=data or {})
 
 
 class QSimulationLog(BaseModel):

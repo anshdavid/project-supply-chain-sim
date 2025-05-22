@@ -4,7 +4,7 @@ logs.py
 Defines log entry models for use in simulation components such as factories, machines, repairmen, and the overall simulation.
 
 Classes:
-    QLogEntry: Base log entry model for events and tasks, with timestamp, duration, type, message, and optional data.
+    QLogEntry: Represents individual log entries for events and tasks in the simulation.
     QSimulationLog: Aggregates simulation-level logs, including factory, machine, and repairman logs, and provides a unified structure for simulation event tracking.
 
 Usage:
@@ -28,8 +28,8 @@ class QLogEntry(BaseModel):
     Represents a generic log entry for simulation events.
 
     Attributes:
-        timestamp (int): The simulation time when the log entry was created, in seconds since epoch.
-        duration (int): Duration of the simulation event, 0 if type_ is "Event", > 0 if type_ is "Task".
+        timestamp (int | float): The simulation time when the log entry was created, in seconds since epoch.
+        duration (int | float): Duration of the simulation event, 0 if type_ is "Event", > 0 if type_ is "Task".
         type_ (Literal["Event", "Task"]): Type of log entry (default: "Event").
         message (str): The log message describing the event or task.
         data (dict): Optional additional data related to the log event (default: empty dict).
@@ -41,6 +41,39 @@ class QLogEntry(BaseModel):
     message: str = Field(description="Log message")
     data: dict = Field(default_factory=dict, description="Additional data related to the log")
 
+    @classmethod
+    def make_task(
+        cls, timestamp: int | float, duration: int | float, message: str, data: dict | None = None
+    ) -> QLogEntry:
+        """
+        Create a log entry of type "Task".
+
+        Args:
+            timestamp (int | float): The simulation time when the log entry was created.
+            duration (int | float): Duration of the task.
+            message (str): The log message describing the task.
+            data (dict, optional): Additional data related to the task.
+
+        Returns:
+            QLogEntry: A log entry of type "Task".
+        """
+        return cls(timestamp=timestamp, duration=duration, type_="Task", message=message, data=data or {})
+
+    @classmethod
+    def make_event(cls, timestamp: int | float, message: str, data: dict | None = None) -> QLogEntry:
+        """
+        Create a log entry of type "Event".
+
+        Args:
+            timestamp (int | float): The simulation time when the log entry was created.
+            message (str): The log message describing the event.
+            data (dict, optional): Additional data related to the event.
+
+        Returns:
+            QLogEntry: A log entry of type "Event".
+        """
+        return cls(timestamp=timestamp, duration=0, type_="Event", message=message, data=data or {})
+
 
 class QSimulationLog(BaseModel):
     """
@@ -49,7 +82,7 @@ class QSimulationLog(BaseModel):
     Attributes:
         launch_timestamp (str): Launch timestamp of the simulation in ISO8601 format.
         simulation_duration (int): Duration of the simulation in seconds.
-        simulation_runtime (int): Runtime of the simulation in seconds.
+        simulation_runtime (int | float): Runtime of the simulation in seconds.
         description (str): Description of the simulation.
         factory_logs (dict[str, list[QLogEntry]]): Mapping of factory names to their log entries.
         machine_logs (dict[str, list[QLogEntry]]): Mapping of machine names to their log entries.
@@ -57,6 +90,8 @@ class QSimulationLog(BaseModel):
 
     Methods:
         from_factory: Creates a QSimulationLog instance from a QFactory instance, aggregating logs from the factory, its machines, and repairmen.
+        anychart_dump: Converts the simulation logs into a format compatible with AnyChart visualizations.
+        viz_dump: Converts the simulation logs into a format compatible with timeline visualizations.
     """
 
     launch_timestamp: str = Field(description="Launch timestamp of the simulation")
@@ -110,6 +145,12 @@ class QSimulationLog(BaseModel):
         )
 
     def anychart_dump(self) -> list:
+        """
+        Converts the simulation logs into a format compatible with AnyChart visualizations.
+
+        Returns:
+            list: A list of nodes representing the simulation logs in AnyChart format.
+        """
         nodes = []
 
         # Helper to build node
@@ -153,8 +194,13 @@ class QSimulationLog(BaseModel):
 
     def viz_dump(self, include_events: bool = False) -> dict:
         """
-        simlog: an instance or dict with .factory_logs, .machine_logs, .repairman_logs
-        Returns dict with 'data' and 'groups'
+        Converts the simulation logs into a format compatible with timeline visualizations.
+
+        Args:
+            include_events (bool): Whether to include event logs in the visualization (default: False).
+
+        Returns:
+            dict: A dictionary containing 'data' and 'groups' for timeline visualization.
         """
         data = []
         groups = []

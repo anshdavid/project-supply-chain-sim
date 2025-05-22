@@ -6,7 +6,7 @@
     <style>
         body,
         html {
-            font-family: arial, sans-serif;
+            font-family: 'calibri';
             font-size: 11pt;
         }
 
@@ -17,73 +17,142 @@
             border-color: red;
             color: white;
         }
+
+        #uploadSection {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 10px;
+        }
+
+        #fileInput {
+            margin-left: 10px;
+        }
+
+        #wrapper {
+            max-width: 90%;
+            margin: 0 auto;
+        }
+
+        #container {
+            width: 100%;
+            border: 1px solid #ccc;
+        }
+
+        .progress-wrapper {
+            background: white;
+            width: 100%;
+            height: 18px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .progress {
+            height: 100%;
+            width: 60%;
+            position: absolute;
+            left: 0px;
+            top: 0px;
+            background: #63ed63;
+        }
+
+        .progress-label {
+            position: absolute;
+            z-index: 1;
+        }
     </style>
-    <link rel="stylesheet" href="https://visjs.github.io/vis-timeline/styles/vis-timeline-graph2d.css">
+    <!-- <link rel="stylesheet" href="https://visjs.github.io/vis-timeline/styles/vis-timeline-graph2d.css"> -->
 
-
+    <link href="https://unpkg.com/vis-timeline@latest/styles/vis-timeline-graph2d.css" rel="stylesheet"
+        type="text/css" />
 
 </head>
 
 <body>
 
-    <p>Specify individual items to be editable or readonly. Toggle edit options and override behavior from
-        timeline.editable</p>
+    <div id="wrapper">
+        <h1>QUAESTOR</h1>
+        <div id="uploadSection">
+            <label for="fileInput">Upload Log File:</label>
+            <input type="file" id="fileInput" accept=".json" />
+        </div>
+        <div id="container">
+            <div id="visualization"></div>
+        </div>
+    </div>
 
-    <div id="visualization"></div>
 
-    <script src="https://visjs.github.io/vis-timeline/standalone/umd/vis-timeline-graph2d.js"></script>
+    <!-- <script src="https://visjs.github.io/vis-timeline/standalone/umd/vis-timeline-graph2d.js"></script> -->
+    <script src="https://unpkg.com/vis-timeline@latest/standalone/umd/vis-timeline-graph2d.js"></script>
+
     <script>
-        // create a DataSet with items
-        var items = new vis.DataSet([
-            { id: 1, content: 'Editable', editable: true, start: '2010-08-23', group: 1 },
-            { id: 2, content: 'Editable', editable: true, start: '2010-08-23T23:00:00', group: 2 },
-            { id: 3, content: 'Read-only', editable: false, start: '2010-08-24T16:00:00', group: 1 },
-            { id: 4, content: 'Read-only', editable: false, start: '2010-08-26', end: '2010-09-02', group: 2 },
-            { id: 5, content: 'Editable', editable: true, start: '2010-08-28', group: 1 },
-            { id: 6, content: 'Read-only', editable: false, start: '2010-08-29', group: 2 },
-            { id: 7, content: 'Editable', editable: true, start: '2010-08-31', end: '2010-09-03', group: 1 },
-            { id: 8, content: 'Read-only', editable: false, start: '2010-09-04T12:00:00', group: 2 },
-            { id: 9, content: 'Default', start: '2010-09-04', group: 1 },
-            { id: 10, content: 'Default', start: '2010-08-24', group: 2 },
-            { id: 11, content: 'item 1', start: '2013-04-20', group: 3 },
-            { id: 12, content: 'item 2', start: '2013-04-14', group: 3 },
-            { id: 13, content: 'item 3', start: '2013-04-18', group: 3 },
-            { id: 14, content: 'item 4', start: '2013-04-16', end: '2013-04-19', group: 3 },
-            { id: 15, content: 'item 5', start: '2013-04-25', group: 3 },
-            { id: 16, content: 'item 6', start: '2013-04-27', group: 3 }
-        ]);
+        document.getElementById("fileInput").addEventListener("change", function (e) {
+            const file = e.target.files[0];
+            if (!file) return;
 
-        var groups = [
-            {
-                id: 1,
-                content: 'group 1'
-            },
-            {
-                id: 2,
-                content: 'group 2'
-            },
-            {
-                id: 3,
-                content: 'group 3'
-            }
-        ];
+            const reader = new FileReader();
+            reader.onload = function (event) {
+                let parsed;
+                try {
+                    parsed = JSON.parse(event.target.result);
+                } catch (e) {
+                    alert("Invalid JSON file.");
+                    return;
+                }
+                // Expect parsed to be {data: [...], groups: [...]}
+                if (!parsed.data || !parsed.groups) {
+                    alert("JSON must have 'data' and 'groups' arrays.");
+                    return;
+                }
 
-        var container = document.getElementById('visualization');
-        var options = {
-            groupHeightMode: 'fixed',
-            cluster: {
-                showStipes: true,
-            },
-            editable: {
-                add: false,
-                remove: false,
-                updateGroup: false,
-                updateTime: false,
-                overrideItems: false,
-            }  // default for all items
-        };
+                var items = new vis.DataSet(parsed.data);
+                var groups = new vis.DataSet(parsed.groups);
 
-        var timeline = new vis.Timeline(container, items, groups, options);
+                var container = document.getElementById('visualization');
+
+                var options = {
+                    // override items
+                    editable: {
+                        add: false,
+                        remove: false,
+                        updateGroup: false,
+                        updateTime: false,
+                        overrideItems: false,
+                    },
+                    // ease of use
+                    groupHeightMode: 'fixed',
+                    //cluster: {
+                    //    showStipes: true,
+                    //},
+                    // progress bar
+                    xss: {
+                        disabled: false,
+                        filterOptions: {
+                            whiteList: { p: ['class', 'data-from-template'], div: 'class' },
+                        },
+                    },
+                    visibleFrameTemplate: function (item) {
+                        if (item.visibleFrameTemplate) {
+                            return item.visibleFrameTemplate;
+                        }
+                        if (item.value) {
+                            // If the item has a value, use it to create a progress bar
+                            return '<div class="progress-wrapper"><div class="progress" style="width:' + item.value * 100 + '%"></div></div>';
+                        }
+                        return '<div class="progress-wrapper"><div class="progress" style="width:' + 50 + '%"></div></div>';
+                    }
+                };
+
+                // Clear previous timeline if any
+                if (window.timeline) {
+                    window.timeline.destroy();
+                }
+                window.timeline = new vis.Timeline(container, items, groups, options);
+            };
+            reader.readAsText(file);
+        });
+
 
     </script>
 

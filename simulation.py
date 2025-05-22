@@ -21,9 +21,9 @@ def test_factory(duration: int = 36000):
     config = QFactory.QFactoryConfig(
         name="TestFactory",
         machines=[
-            # QMachine.QMachineConfig(
-            #     name="M1", state="idle", mean_operation_time=1200.0, sigma=1.0, mttf=4 * 60 * 60, fixed_time=True
-            # ),
+            QMachine.QMachineConfig(
+                name="M1", state="idle", mean_operation_time=1200.0, sigma=1.0, mttf=4 * 60 * 60, fixed_time=True
+            ),
             QMachine.QMachineConfig(
                 name="M2", state="idle", mean_operation_time=600.0, sigma=1.0, mttf=1 * 60 * 60, fixed_time=True
             ),
@@ -55,6 +55,9 @@ def test_factory(duration: int = 36000):
 
     with open(rf"/app/logs/{file_name}" + "_anychart.json", "w", encoding="utf-8") as f:
         json.dump(sim_log.anychart_dump(), f, indent=4)
+
+    with open(r"/app/logs/viztimeline.json", "w", encoding="utf-8") as f:
+        json.dump(sim_log.viz_dump(), f, indent=4)
 
 
 if __name__ == "__main__":

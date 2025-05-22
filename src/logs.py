@@ -15,6 +15,7 @@ Usage:
 from __future__ import annotations
 
 from typing import Literal, TYPE_CHECKING
+from datetime import datetime
 
 from pydantic import BaseModel, Field
 
@@ -149,3 +150,60 @@ class QSimulationLog(BaseModel):
             nodes.append(make_node(repairman, repairman, logs))
 
         return nodes
+
+    def viz_dump(self, include_events: bool = False) -> dict:
+        """
+        simlog: an instance or dict with .factory_logs, .machine_logs, .repairman_logs
+        Returns dict with 'data' and 'groups'
+        """
+        data = []
+        groups = []
+        group_map = {}  # name to group id
+        next_group_id = 1
+        item_id = 1
+        include_events = include_events
+
+        def add_group(name):
+            nonlocal next_group_id
+            if name not in group_map:
+                group_map[name] = next_group_id
+                groups.append({"id": next_group_id, "content": name})
+                next_group_id += 1
+            return group_map[name]
+
+        # Helper to flatten and collect
+        def process(logs: list[QLogEntry], entity_name: str):
+            nonlocal item_id
+            nonlocal include_events
+            gid = add_group(entity_name)
+            for log in logs:
+                if log.type_ == "Event" and not include_events:
+                    continue
+                start = datetime.fromtimestamp(log.timestamp / 1000).isoformat()
+                item = {
+                    "id": item_id,
+                    "content": log.message,
+                    "start": start,
+                    "group": gid,
+                }
+                # Editable: make tasks editable, events readonly
+                if log.type_ == "Task":
+                    item["editable"] = True
+                    if log.duration and float(log.duration) > 0:
+                        # Calculate end date
+                        end_ts = float(log.timestamp) + float(log.duration) * 1000
+                        item["end"] = datetime.fromtimestamp(end_ts / 1000).isoformat()
+                else:
+                    item["editable"] = False
+                data.append(item)
+                item_id += 1
+
+        # Process all logs
+        # for fac, logs in dict(self.factory_logs).items():
+        #     process(logs, fac)
+        for mach, logs in dict(self.machine_logs).items():
+            process(logs, mach)
+        for rep, logs in dict(self.repairman_logs).items():
+            process(logs, rep)
+
+        return {"data": data, "groups": groups}

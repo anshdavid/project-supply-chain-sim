@@ -171,3 +171,4 @@ app.tar
 **/*.db
 aws/server/*
 embedding/dataset/**/*
+logs/**.*

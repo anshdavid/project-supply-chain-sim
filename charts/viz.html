@@ -1,0 +1,93 @@
+<html>
+
+<head>
+    <title>Timeline | editing | Individual editable items (override)</title>
+
+    <style>
+        body,
+        html {
+            font-family: arial, sans-serif;
+            font-size: 11pt;
+        }
+
+        div.vis-readonly,
+        div.vis-readonly.vis-selected {
+            /* custom styling for readonly items... */
+            background-color: #ff4500;
+            border-color: red;
+            color: white;
+        }
+    </style>
+    <link rel="stylesheet" href="https://visjs.github.io/vis-timeline/styles/vis-timeline-graph2d.css">
+
+
+
+</head>
+
+<body>
+
+    <p>Specify individual items to be editable or readonly. Toggle edit options and override behavior from
+        timeline.editable</p>
+
+    <div id="visualization"></div>
+
+    <script src="https://visjs.github.io/vis-timeline/standalone/umd/vis-timeline-graph2d.js"></script>
+    <script>
+        // create a DataSet with items
+        var items = new vis.DataSet([
+            { id: 1, content: 'Editable', editable: true, start: '2010-08-23', group: 1 },
+            { id: 2, content: 'Editable', editable: true, start: '2010-08-23T23:00:00', group: 2 },
+            { id: 3, content: 'Read-only', editable: false, start: '2010-08-24T16:00:00', group: 1 },
+            { id: 4, content: 'Read-only', editable: false, start: '2010-08-26', end: '2010-09-02', group: 2 },
+            { id: 5, content: 'Editable', editable: true, start: '2010-08-28', group: 1 },
+            { id: 6, content: 'Read-only', editable: false, start: '2010-08-29', group: 2 },
+            { id: 7, content: 'Editable', editable: true, start: '2010-08-31', end: '2010-09-03', group: 1 },
+            { id: 8, content: 'Read-only', editable: false, start: '2010-09-04T12:00:00', group: 2 },
+            { id: 9, content: 'Default', start: '2010-09-04', group: 1 },
+            { id: 10, content: 'Default', start: '2010-08-24', group: 2 },
+            { id: 11, content: 'item 1', start: '2013-04-20', group: 3 },
+            { id: 12, content: 'item 2', start: '2013-04-14', group: 3 },
+            { id: 13, content: 'item 3', start: '2013-04-18', group: 3 },
+            { id: 14, content: 'item 4', start: '2013-04-16', end: '2013-04-19', group: 3 },
+            { id: 15, content: 'item 5', start: '2013-04-25', group: 3 },
+            { id: 16, content: 'item 6', start: '2013-04-27', group: 3 }
+        ]);
+
+        var groups = [
+            {
+                id: 1,
+                content: 'group 1'
+            },
+            {
+                id: 2,
+                content: 'group 2'
+            },
+            {
+                id: 3,
+                content: 'group 3'
+            }
+        ];
+
+        var container = document.getElementById('visualization');
+        var options = {
+            groupHeightMode: 'fixed',
+            cluster: {
+                showStipes: true,
+            },
+            editable: {
+                add: false,
+                remove: false,
+                updateGroup: false,
+                updateTime: false,
+                overrideItems: false,
+            }  // default for all items
+        };
+
+        var timeline = new vis.Timeline(container, items, groups, options);
+
+    </script>
+
+
+</body>
+
+</html>

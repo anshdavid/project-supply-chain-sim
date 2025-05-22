@@ -1,0 +1,167 @@
+<html>
+
+<head>
+    <title>Timeline | editing | Individual editable items (override)</title>
+
+    <style>
+        body,
+        html {
+            font-family: arial, sans-serif;
+            font-size: 11pt;
+        }
+
+        div.vis-readonly,
+        div.vis-readonly.vis-selected {
+            /* custom styling for readonly items... */
+            background-color: #ff4500;
+            border-color: red;
+            color: white;
+        }
+    </style>
+    <link rel="stylesheet" href="https://visjs.github.io/vis-timeline/styles/vis-timeline-graph2d.css">
+
+
+
+</head>
+
+<body>
+
+    <p>Specify individual items to be editable or readonly. Toggle edit options and override behavior from
+        timeline.editable</p>
+
+    <div id="visualization"></div>
+
+    <h2>Local time</h2>
+    <div id="local"></div>
+
+    <h2>UTC</h2>
+    <div id="utc"></div>
+
+    <h2>UTC +08:00</h2>
+    <div id="plus8"></div>
+
+    <script src="https://visjs.github.io/vis-timeline/standalone/umd/vis-timeline-graph2d.js"></script>
+    <script>
+        // create a DataSet with items
+        var items = new vis.DataSet([
+            { id: 1, content: 'Editable', editable: true, start: '2010-08-23', group: 1 },
+            { id: 2, content: 'Editable', editable: true, start: '2010-08-23T23:00:00', group: 2 },
+            { id: 3, content: 'Read-only', editable: false, start: '2010-08-24T16:00:00', group: 1 },
+            { id: 4, content: 'Read-only', editable: false, start: '2010-08-26', end: '2010-09-02', group: 2 },
+            { id: 5, content: 'Editable', editable: true, start: '2010-08-28', group: 1 },
+            { id: 6, content: 'Read-only', editable: false, start: '2010-08-29', group: 2 },
+            { id: 7, content: 'Editable', editable: true, start: '2010-08-31', end: '2010-09-03', group: 1 },
+            { id: 8, content: 'Read-only', editable: false, start: '2010-09-04T12:00:00', group: 2 },
+            { id: 9, content: 'Default', start: '2010-09-04', group: 1 },
+            { id: 10, content: 'Default', start: '2010-08-24', group: 2 },
+            { id: 11, content: 'item 1', start: '2013-04-20', group: 3 },
+            { id: 12, content: 'item 2', start: '2013-04-14', group: 3 },
+            { id: 13, content: 'item 3', start: '2013-04-18', group: 3 },
+            { id: 14, content: 'item 4', start: '2013-04-16', end: '2013-04-19', group: 3 },
+            { id: 15, content: 'item 5', start: '2013-04-25', group: 3 },
+            { id: 16, content: 'item 6', start: '2013-04-27', group: 3 }
+        ]);
+
+        var groups = [
+            {
+                id: 1,
+                content: 'group 1'
+            },
+            {
+                id: 2,
+                content: 'group 2'
+            },
+            {
+                id: 3,
+                content: 'group 3'
+            }
+        ];
+
+        var container = document.getElementById('visualization');
+        var options = {
+            groupHeightMode: 'fixed',
+            cluster: {
+                showStipes: true,
+            },
+            editable: {
+                add: false,
+                remove: false,
+                updateGroup: false,
+                updateTime: false,
+                overrideItems: false,
+            }  // default for all items
+        };
+
+        var timeline = new vis.Timeline(container, items, groups, options);
+
+    </script>
+    <script type="text/javascript">
+        // Create a DataSet (allows two way data-binding)
+        var today = vis.moment(vis.moment.utc().format('YYYY-MM-DDT00:00:00.000Z'));
+        var start = today.clone();
+        var end = today.clone().add(2, 'day');
+        var customTime = today.clone().add(28, 'hour');
+
+        var items = new vis.DataSet([
+            { id: 1, content: 'item 1', start: today.clone().add(8, 'hour') },
+            { id: 2, content: 'item 2', start: today.clone().add(16, 'hour') },
+            { id: 3, content: 'item 3', start: today.clone().add(32, 'hour') }
+        ]);
+
+        // Create a timeline displaying in local time (default)
+        var timelineLocal = new vis.Timeline(document.getElementById('local'), items, {
+            editable: true,
+            start: start,
+            end: end
+        });
+        timelineLocal.addCustomTime(customTime);
+
+        // Create a timeline displaying in UTC
+        var timelineUTC = new vis.Timeline(document.getElementById('utc'), items, {
+            editable: true,
+            start: start,
+            end: end,
+            moment: function (date) {
+                return vis.moment(date).utc();
+            }
+        });
+        timelineUTC.addCustomTime(customTime);
+
+        // Create a timeline displaying in UTC +08:00
+        var timelinePlus8 = new vis.Timeline(document.getElementById('plus8'), items, {
+            editable: true,
+            start: start,
+            end: end,
+            moment: function (date) {
+                return vis.moment(date).utcOffset('+08:00');
+            }
+        });
+        timelinePlus8.addCustomTime(customTime);
+
+        // Synchronize scrolling and zooming between timelines
+        let isSyncing = false;
+
+        function syncTimelines(source, s, e) {
+            if (isSyncing) return;
+            isSyncing = true;
+            if (source !== timelineLocal) timelineLocal.setWindow(s, e, { animation: false });
+            if (source !== timelineUTC) timelineUTC.setWindow(s, e, { animation: false });
+            if (source !== timelinePlus8) timelinePlus8.setWindow(s, e, { animation: false });
+            isSyncing = false;
+        }
+
+        timelineLocal.on('rangechange', function (props) {
+            syncTimelines(timelineLocal, props.start, props.end);
+        });
+        timelineUTC.on('rangechange', function (props) {
+            syncTimelines(timelineUTC, props.start, props.end);
+        });
+        timelinePlus8.on('rangechange', function (props) {
+            syncTimelines(timelinePlus8, props.start, props.end);
+        });
+    </script>
+
+
+</body>
+
+</html>

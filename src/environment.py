@@ -9,17 +9,13 @@ class QEnvironment(simpy.Environment):
         super().__init__(initial_time)
         self.simulation_period = simulation_period
 
-    def get_timestamp_now(self) -> int:
+    def sim_timestamp(self, offset: int | float) -> int:
         """
-        Returns the current timestamp in milliseconds as an integer.
-
-        The timestamp is calculated by converting the simulation period (assumed to be an ISO formatted string)
-        to a datetime object, obtaining its Unix timestamp in seconds, multiplying by 1000 to convert to milliseconds,
-        and then adding the current offset (`self.now`).
-
+        Calculates the real-world timestamp w.r.t. simulation period in milliseconds based on the simulation period and current offset.
+        Args:
+            offset (int | float): The offset to apply to the simulation period's timestamp.
         Returns:
-            int: The current timestamp in milliseconds.
+            int: The real-world timestamp in milliseconds.
         """
 
-        stamp_ = datetime.fromisoformat(self.simulation_period).timestamp() + self.now
-        return int(stamp_ * 1000)
+        return int(round(datetime.strptime(self.simulation_period, "%Y-%m-%d %H:%M:%S").timestamp() + offset, 2)) * 1000

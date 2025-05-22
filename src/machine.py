@@ -25,14 +25,13 @@ Dependencies:
 from __future__ import annotations
 
 import random
-import sys
 from typing import Literal, TYPE_CHECKING
 
-from ipywidgets import fixed
 from pydantic import BaseModel, Field, PrivateAttr
 
 from src.environment import QEnvironment
 from src.logs import QLogEntry
+from src.utils import calc_task_progress
 
 if TYPE_CHECKING:
     from src.factory import QFactory
@@ -113,13 +112,18 @@ class QMachine:
         """
 
         name: str = Field(description="Name of the machine")
-        state: Literal["idle", "working", "broken", "repair"] = Field(
-            description="Current operational state: idle, working, broken"
+        state: Literal["idle", "working", "broken", "off"] = Field(
+            description="Current operational state: idle, working, broken, off"
+        )
+        fixed_time_to_produce: bool = Field(
+            default=True, description="Use fixed time for production and failure events"
         )
         mean_operation_time: float = Field(description="Mean time per part", gt=0)
         sigma: float = Field(..., description="Standard deviation in operation time")
+        fixed_time_to_failure: bool = Field(
+            default=True, description="Use fixed time for production and failure events"
+        )
         mttf: float = Field(description="Mean Time to Failures", gt=0)
-        fixed_time: bool = Field(default=True, description="Use fixed time for production and failure events")
 
     class QMachineState(BaseModel):
         """
@@ -139,107 +143,40 @@ class QMachine:
         """
 
         name: str
-        state: Literal["idle", "working", "broken", "repair"] = Field(
-            description="Current operational state: idle, working, broken"
+        state: Literal["idle", "working", "broken", "off"] = Field(
+            description="Current operational state: idle, working, broken, off"
         )
+        fixed_time_to_produce: bool = Field(default=True, description="Use fixed time for production events")
         mean_operation_time: float = Field(description="Mean time per part", gt=0)
         sigma: float = Field(description="Standard deviation in operation time")
+        fixed_time_to_failure: bool = Field(default=True, description="Use fixed time for failure events")
         mttf: float = Field(description="Mean Time to Failures", gt=0)
+
         parts_produced: int = Field(default=0, description="Total parts produced by the machine")
         parts_pending: int = Field(default=0, description="Pending parts to be produced")
-        fixed_time: bool = Field(default=True, description="Use fixed time for production and failure events")
 
         logs: list[QLogEntry] = []
 
-        timeout_failure: float = Field(default=0, description="Timeout event for failure")
-        timeout_production: float = Field(default=0, description="Timeout event for production")
+        timeout_to_failure: float = Field(default=0, description="Timeout event for failure")
+        timeout_to_production: float = Field(default=0, description="Timeout event for production")
 
         _environment: QEnvironment = PrivateAttr()
         _factory: QFactory | None = PrivateAttr(default=None)
 
-        def set_state(self, state: Literal["idle", "working", "broken", "repair"]):
+        def set_state(self, state: Literal["idle", "working", "broken", "off"]):
             """
             Set the state of the machine.
 
             Args:
-                state (Literal["idle", "working", "broken", "repair"]): The new state to set for the machine.
+                state (Literal["idle", "working", "broken", "off"]): The new state to set for the machine.
             """
             self.state = state
-
-        def get_state(self) -> str:
-            """
-            Get the current state of the machine.
-
-            Returns:
-                str: The current state.
-            """
-            return self.state
-
-        def is_state(self, state: Literal["idle", "working", "broken", "repair"]) -> bool:
-            """
-            Check if the current state of the machine matches the specified state.
-
-            Args:
-                state (Literal["idle", "working", "broken", "repair"]): The state to compare against the machine's current state.
-
-            Returns:
-                bool: True if the machine's current state matches the specified state, False otherwise.
-            """
-            return self.state == state
-
-        def update_parts_produced(self, parts: int):
-            """
-            Update the number of parts produced by the machine.
-
-            Args:
-                parts (int): The number of parts to add to the current total.
-            """
-            self.parts_produced += parts
-
-        def update_parts_pending(self, parts: int):
-            """
-            Update the number of parts pending by adding the specified amount.
-
-            Args:
-                parts (int): Signed (+/-) number of parts to add or subtract to the pending count.
-            """
-            self.parts_pending += parts
-
-        def set_timeout_to_failure(self, timeout: float):
-            """
-            Set the timeout for the next failure event.
-
-            Args:
-                timeout (float): The timeout duration to set.
-            """
-            self.timeout_failure = timeout
-
-        def get_timeout_to_failure(self) -> float:
-            """
-            Get the timeout for the next failure event.
-
-            Returns:
-                float: The timeout duration for the next failure event.
-            """
-            return self.timeout_failure
-
-        def set_timeout_to_produce(self, timeout: float):
-            """
-            Set the timeout for the next production event.
-
-            Args:
-                timeout (float): The timeout duration to set.
-            """
-            self.timeout_production = timeout
-
-        def get_timeout_to_produce(self) -> float:
-            """
-            Get the timeout for the next production event.
-
-            Returns:
-                float: The timeout duration for the next production event.
-            """
-            return self.timeout_production
+            self.logs.append(
+                QLogEntry.make_event(
+                    timestamp=self.get_environment().sim_timestamp(),
+                    message=f"Machine state changed to {state}",
+                )
+            )
 
         def set_factory(self, factory: QFactory):
             """
@@ -308,22 +245,17 @@ class QMachine:
             sigma_operation (float): Standard deviation in operation time.
             mttf (float): Mean Time to Failure.
         """
-        self.machine_state: QMachine.QMachineState = QMachine.QMachineState(
-            name=name,
-            state="idle",
-            mean_operation_time=mean_operation_time,
-            sigma=sigma_operation,
-            mttf=mttf,
-            parts_produced=0,
+        self.state: QMachine.QMachineState = QMachine.QMachineState(
+            name=name, state="idle", mean_operation_time=mean_operation_time, sigma=sigma_operation, mttf=mttf
         )
 
-        self.machine_state.set_environment(env)
-        self.machine_state.set_state("idle")
+        self.state.set_environment(env)
+        self.state.set_state("idle")
 
-        ttf = calculate_timeout_to_failure(self.machine_state.mttf, fixed_time=self.machine_state.fixed_time)
-        self.machine_state.set_timeout_to_failure(ttf)
-        self.event_failure = self.machine_state.get_environment().timeout(ttf)
-        self.event_production = self.machine_state.get_environment().timeout(0)
+        ttf = calculate_timeout_to_failure(self.state.mttf, fixed_time=self.state.fixed_time_to_produce)
+        self.state.timeout_to_failure = ttf
+        self.event_failure = self.state.get_environment().timeout(ttf)
+        self.event_production = self.state.get_environment().timeout(0)
 
     def produce_p(self, parts_to_produce: int):
         """
@@ -343,77 +275,65 @@ class QMachine:
                 - If a failure occurs, sets the machine state to "broken" and exits.
             - After all parts are produced, sets the machine state to "idle".
         """
-        if not self.machine_state.is_state("idle"):
-            self.machine_state.logs.append(
-                QLogEntry(
-                    timestamp=self.machine_state.get_environment().get_timestamp_now(),
-                    message=f"Cannot produce parts while in state {self.machine_state.get_state()}",
+        if self.state.state != "idle":
+            self.state.logs.append(
+                QLogEntry.make_event(
+                    timestamp=self.state.get_environment().sim_timestamp(),
+                    message=f"Cannot produce parts while in state {self.state.state}",
                 )
             )
             return
 
-        self.machine_state.parts_pending = parts_to_produce
+        self.state.parts_pending = parts_to_produce
 
-        self.machine_state.logs.append(
-            QLogEntry(
-                timestamp=self.machine_state.get_environment().get_timestamp_now(),
-                message=f"Starting production of {parts_to_produce} parts.",
+        self.state.logs.append(
+            QLogEntry.make_event(
+                timestamp=self.state.get_environment().sim_timestamp(),
+                message="Starting production",
             )
         )
 
         for i in range(parts_to_produce):
             ttp = calculate_timeout_to_produce(
-                self.machine_state.mean_operation_time,
-                self.machine_state.sigma,
-                fixed_time=self.machine_state.fixed_time,
+                self.state.mean_operation_time,
+                self.state.sigma,
+                fixed_time=self.state.fixed_time_to_produce,
             )
-            self.machine_state.set_timeout_to_produce(ttp)
-            self.event_production = self.machine_state.get_environment().timeout(ttp)
+            self.state.timeout_to_production = ttp
+            self.event_production = self.state.get_environment().timeout(ttp)
 
-            current_task = QLogEntry(
-                timestamp=self.machine_state.get_environment().get_timestamp_now(),
+            current_task_log = QLogEntry.make_task(
+                timestamp=self.state.get_environment().sim_timestamp(),
                 duration=ttp,
-                type_="Task",
-                message=f"Starting production of part {i + 1}",
+                message=f"Starting production {i + 1} / {self.state.parts_pending}",
             )
-            self.machine_state.logs.append(current_task)
+            self.state.logs.append(current_task_log)
 
-            self.machine_state.set_state("working")
-            self.machine_state.logs.append(
-                QLogEntry(timestamp=self.machine_state.get_environment().get_timestamp_now(), message="working")
-            )
+            self.state.set_state("working")
 
             yield self.event_failure | self.event_production
 
             if self.event_production.processed:
-                self.machine_state.update_parts_produced(+1)
-                self.machine_state.update_parts_pending(-1)
-                self.machine_state.logs.append(
-                    QLogEntry(
-                        timestamp=self.machine_state.get_environment().get_timestamp_now(), message="finished task"
-                    )
-                )
+                self.state.parts_produced += 1
+                self.state.parts_pending -= 1
+                current_task_log.progress = 100
 
             elif self.event_failure.processed:
 
-                self.machine_state.set_state("broken")
-                self.machine_state.logs.append(
-                    QLogEntry(
-                        timestamp=self.machine_state.get_environment().get_timestamp_now(),
-                        message=f"broken after {self.machine_state.get_timeout_to_failure()}",
-                    )
-                )
+                self.state.set_state("broken")
 
-                current_task.duration = (
-                    self.machine_state.get_environment().get_timestamp_now() - current_task.timestamp
-                ) / 1000
+                current_task_log.progress = calc_task_progress(
+                    task_start_time=current_task_log.timestamp,
+                    task_duration=current_task_log.duration,
+                    task_actual_end_time=self.state.get_environment().sim_timestamp(),
+                )
 
                 return
 
-        self.machine_state.set_state("idle")
-        self.machine_state.logs.append(
-            QLogEntry(
-                timestamp=self.machine_state.get_environment().get_timestamp_now(), message="idle after production"
+        self.state.set_state("idle")
+        self.state.logs.append(
+            QLogEntry.make_event(
+                timestamp=self.state.get_environment().sim_timestamp(), message="idle after production"
             )
         )
 
@@ -426,21 +346,19 @@ class QMachine:
         If there are parts pending, initiates the production process for the remaining parts.
         Otherwise, sets the machine state to "idle" if not already idle.
         """
-        self.machine_state.set_state("idle")
-        ttf = calculate_timeout_to_failure(self.machine_state.mttf, fixed_time=False)
-        self.machine_state.set_timeout_to_failure(ttf)
-        self.event_failure = self.machine_state.get_environment().timeout(ttf)
+        self.state.state = "idle"
 
-        if self.machine_state.parts_pending > 0:
-            self.machine_state.logs.append(
-                QLogEntry(
-                    timestamp=self.machine_state.get_environment().get_timestamp_now(),
-                    message="restarted and resuming production",
-                )
+        ttf = calculate_timeout_to_failure(self.state.mttf, fixed_time=False)
+        self.state.timeout_to_failure = ttf
+        self.event_failure = self.state.get_environment().timeout(ttf)
+
+        if self.state.parts_pending > 0:
+            self.state.logs.append(
+                QLogEntry.make_event(timestamp=self.state.get_environment().sim_timestamp(), message="restarted")
             )
-            self.machine_state.get_environment().process(self.produce_p(self.machine_state.parts_pending))
+            self.state.get_environment().process(self.produce_p(self.state.parts_pending))
             return
 
-        self.machine_state.logs.append(
-            QLogEntry(timestamp=self.machine_state.get_environment().get_timestamp_now(), message="restarted and idle")
+        self.state.logs.append(
+            QLogEntry.make_event(timestamp=self.state.get_environment().sim_timestamp(), message="restarted and idle")
         )

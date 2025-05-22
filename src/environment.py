@@ -9,7 +9,7 @@ class QEnvironment(simpy.Environment):
         super().__init__(initial_time)
         self.simulation_period = simulation_period
 
-    def sim_timestamp(self, offset: int | float) -> int:
+    def sim_timestamp(self, offset: int | float = 0) -> int:
         """
         Calculates the real-world timestamp w.r.t. simulation period in milliseconds based on the simulation period and current offset.
         Args:

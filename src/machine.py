@@ -305,7 +305,7 @@ class QMachine:
             current_task_log = QLogEntry.make_task(
                 timestamp=self.state.get_environment().sim_timestamp(),
                 duration=ttp,
-                message=f"Starting production {i + 1} / {self.state.parts_pending}",
+                message=f"Starting production {i + 1} / {self.state.parts_pending + i}",
             )
             self.state.logs.append(current_task_log)
 
@@ -322,12 +322,17 @@ class QMachine:
 
                 self.state.set_state("broken")
 
+                end_time = self.state.get_environment().sim_timestamp()
+
                 current_task_log.progress = calc_task_progress(
                     task_start_time=current_task_log.timestamp,
                     task_duration=current_task_log.duration,
-                    task_actual_end_time=self.state.get_environment().sim_timestamp(),
+                    task_actual_end_time=end_time,
                 )
 
+                # FIX: for progress bar not working
+                current_task_log.duration = (end_time - current_task_log.timestamp) / 1000
+                current_task_log.message += f"\n(Complete {current_task_log.progress}%)"
                 return
 
         self.state.set_state("idle")

@@ -10,12 +10,15 @@
             font-size: 11pt;
         }
 
+        div.vis-editable,
+        div.vis-editable.vis-selected {
+            /* custom styling for editable items... */
+        }
+
         div.vis-readonly,
         div.vis-readonly.vis-selected {
             /* custom styling for readonly items... */
-            background-color: #ff4500;
-            border-color: red;
-            color: white;
+
         }
 
         #uploadSection {
@@ -40,9 +43,9 @@
         }
 
         .progress-wrapper {
-            background: #bcb9b9;
+            background: white;
             width: 100%;
-            height: 5px;
+            height: 18px;
             text-align: center;
             position: relative;
             overflow: hidden;
@@ -60,6 +63,7 @@
         .progress-label {
             position: absolute;
             z-index: 1;
+            padding-left: 10px;
         }
     </style>
     <!-- <link rel="stylesheet" href="https://visjs.github.io/vis-timeline/styles/vis-timeline-graph2d.css"> -->
@@ -112,6 +116,8 @@
                 var container = document.getElementById('visualization');
 
                 var options = {
+                    stack: false,
+                    // stackSubgroups: false,
                     // override items
                     editable: {
                         add: false,
@@ -126,22 +132,23 @@
                     //    showStipes: true,
                     //},
                     // progress bar
-                    xss: {
-                        disabled: false,
-                        filterOptions: {
-                            whiteList: { p: ['class', 'data-from-template'], div: 'class' },
-                        },
-                    },
-                    visibleFrameTemplate: function (item) {
-                        if (item.visibleFrameTemplate) {
-                            return item.visibleFrameTemplate;
-                        }
-                        if (item.value) {
-                            // If the item has a value, use it to create a progress bar
-                            return '<div class="progress-wrapper"><div class="progress" style="width:' + item.value * 100 + '%"></div></div>';
-                        }
-                        return '<div class="progress-wrapper"><div class="progress" style="width:' + 50 + '%"></div></div>';
-                    }
+                    //xss: {
+                    //    disabled: false,
+                    //    filterOptions: {
+                    //        whiteList: { p: ['class', 'data-from-template'], div: 'class' },
+                    //    },
+                    //},
+                    //visibleFrameTemplate: function (item) {
+                    //    // If the item has a value, use it to create a progress bar
+                    //    if (item.progress) {
+                    //        console.log("item.progress");
+                    //        var percentage = item.progress + '%';
+                    //        // return '<div class="progress-wrapper"><div class="progress" style="width:' + percentage + '"></div></div>';
+                    //        return '<div class="progress-wrapper"><div class="progress" style="width:' + percentage + '"></div><div class="progress-label">&nbsp;Completed ' + percentage + '</div></div>';
+                    //        //return '<div class="progress-wrapper"><label class="progress-label">' + percentage + '<label></div>';
+                    //    }
+                    //
+                    //}
                 };
 
                 // Clear previous timeline if any

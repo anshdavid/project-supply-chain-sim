@@ -18,4 +18,11 @@ class QEnvironment(simpy.Environment):
             int: The real-world timestamp in milliseconds.
         """
 
-        return int(round(datetime.strptime(self.simulation_period, "%Y-%m-%d %H:%M:%S").timestamp() + offset, 2)) * 1000
+        return (
+            int(
+                round(
+                    datetime.strptime(self.simulation_period, "%Y-%m-%dT%H:%M:%SZ").timestamp() + self.now + offset, 2
+                )
+            )
+            * 1000
+        )

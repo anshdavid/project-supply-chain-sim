@@ -37,6 +37,7 @@ class QLogEntry(BaseModel):
 
     timestamp: int | float  # Accept both float (sim time) and str (UTC ISO8601)
     duration: int | float = Field(default=0, description="Duration of the log entry")
+    progress: int | float = Field(default=0, description="Progress of the log entry")
     type_: Literal["Event", "Task", "Marker"] = Field(default="Event", description="Type of log entry")
     message: str = Field(description="Log message")
     data: dict = Field(default_factory=dict, description="Additional data related to the log")
@@ -140,14 +141,9 @@ class QSimulationLog(BaseModel):
             QSimulationLog: An aggregated simulation log entry.
         """
 
-        factory_logs = {factory.factory_state.name: list(factory.factory_state.logs)}
-        machine_logs = {
-            m.machine_state.name: list(m.machine_state.logs) for m in factory.factory_state.get_machine_store().items
-        }
-        repairman_logs = {
-            r.repairman_state.name: list(r.repairman_state.logs)
-            for r in factory.factory_state.get_repairman_store().items
-        }
+        factory_logs = {factory.state.name: list(factory.state.logs)}
+        machine_logs = {m.state.name: list(m.state.logs) for m in factory.state.get_machine_store().items}
+        repairman_logs = {r.state.name: list(r.state.logs) for r in factory.state.get_repairman_store().items}
 
         return cls(
             launch_timestamp=launch_timestamp,
@@ -207,7 +203,7 @@ class QSimulationLog(BaseModel):
 
         return nodes
 
-    def viz_dump(self, include_events: bool = False) -> dict:
+    def viz_dump(self, log_events: bool = False) -> dict:
         """
         Converts the simulation logs into a format compatible with timeline visualizations.
 
@@ -222,7 +218,7 @@ class QSimulationLog(BaseModel):
         group_map = {}  # name to group id
         next_group_id = 1
         item_id = 1
-        include_events = include_events
+        log_events = log_events
 
         def add_group(name):
             nonlocal next_group_id
@@ -235,33 +231,37 @@ class QSimulationLog(BaseModel):
         # Helper to flatten and collect
         def process(logs: list[QLogEntry], entity_name: str):
             nonlocal item_id
-            nonlocal include_events
             gid = add_group(entity_name)
             for log in logs:
-                if log.type_ == "Event" and not include_events:
-                    continue
                 start = datetime.fromtimestamp(log.timestamp / 1000).isoformat()
                 item = {
                     "id": item_id,
+                    "editable": False,
                     "content": log.message,
                     "start": start,
                     "group": gid,
                 }
                 # Editable: make tasks editable, events readonly
                 if log.type_ == "Task":
-                    item["editable"] = True
                     if log.duration and float(log.duration) > 0:
                         # Calculate end date
                         end_ts = float(log.timestamp) + float(log.duration) * 1000
                         item["end"] = datetime.fromtimestamp(end_ts / 1000).isoformat()
-                else:
-                    item["editable"] = False
+                        item["progress"] = log.progress
+                    else:
+                        item["end"] = start
+                if log.type_ == "Event":
+                    item["type"] = "point"
+
+                nonlocal log_events
+                if not log_events and log.type_ == "Event":
+                    continue
                 data.append(item)
                 item_id += 1
 
         # Process all logs
-        # for fac, logs in dict(self.factory_logs).items():
-        #     process(logs, fac)
+        for fac, logs in dict(self.factory_logs).items():
+            process(logs, fac)
         for mach, logs in dict(self.machine_logs).items():
             process(logs, mach)
         for rep, logs in dict(self.repairman_logs).items():

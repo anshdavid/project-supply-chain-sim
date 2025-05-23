@@ -15,12 +15,17 @@ def calc_task_progress(
     Edge Cases:
         - If task_duration is less than or equal to 0, returns 100.0 if the actual end time is after or at the start time, otherwise returns 0.0.
     """
+
+    diff = (task_actual_end_time - task_start_time) / 1000
+    # print(f"{task_start_time=}, {task_duration=}, {task_actual_end_time=}, {diff=}")
+
     if not task_actual_end_time >= task_start_time:
         raise ValueError("Actual end time must be greater than or equal to start time")
 
     if task_duration <= 0:
-        return 100.0 if task_actual_end_time >= task_start_time else 0.0  # Edge case
+        raise ValueError("Task duration must be greater than 0")
+        # return 100.0 if task_actual_end_time >= task_start_time else 0.0  # Edge case
 
-    progress = (task_actual_end_time - task_start_time) / task_duration
+    progress = diff / task_duration
 
     return round(max(0.0, min(1.0, progress)) * 100, 2)

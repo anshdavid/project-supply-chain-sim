@@ -22,6 +22,7 @@ Dependencies:
 """
 
 from __future__ import annotations
+import sys
 from typing import Literal, TYPE_CHECKING
 
 from pydantic import BaseModel, Field, PrivateAttr
@@ -97,27 +98,14 @@ class QRepairman:
             Raises:
                 ValueError: If the state is not valid.
             """
-            if state not in ["idle", "working"]:
-                raise ValueError("Invalid state")
+
             self.state = state
-
-        def get_state(self) -> Literal["idle", "working"]:
-            """
-            Get the current state of the repairman.
-            Returns:
-                Literal["idle", "working"]: The current state.
-            """
-            return self.state
-
-        def is_state(self, state: Literal["idle", "working"]) -> bool:
-            """
-            Check if the repairman is in a specific state.
-            Args:
-                state (Literal["idle", "working"]): The state to check.
-            Returns:
-                bool: True if the repairman is in the specified state, False otherwise.
-            """
-            return self.state == state
+            self.logs.append(
+                QLogEntry.make_event(
+                    timestamp=self._environment.sim_timestamp(),
+                    message=f"Repairman {self.name} state changed to {state}",
+                )
+            )
 
         def set_environment(self, env: QEnvironment):
             """
@@ -178,13 +166,13 @@ class QRepairman:
             time_to_repair (float): Time required to repair a machine.
             downtime (float): Downtime for the repairman.
         """
-        self.repairman_state: QRepairman.QRepairmanState = QRepairman.QRepairmanState(
+        self.state: QRepairman.QRepairmanState = QRepairman.QRepairmanState(
             name=name,
             time_to_repair=time_to_repair,
             downtime=downtime,
         )
 
-        self.repairman_state.set_environment(env)
+        self.state.set_environment(env)
 
     def repair_machine_p(self, machine: QMachine):
         """
@@ -196,45 +184,45 @@ class QRepairman:
         Yields:
             simpy.events.Timeout: An event representing the repair duration and downtime.
         """
-        if not self.repairman_state.is_state("idle"):
-            self.repairman_state.logs.append(
+        if not self.state.state == "idle":
+            self.state.logs.append(
                 QLogEntry(
-                    timestamp=self.repairman_state.get_environment().get_timestamp_now(),
-                    message=f"Repairman {self.repairman_state.name} is busy, cannot repair machine {machine.machine_state.name}",
+                    timestamp=self.state.get_environment().sim_timestamp(),
+                    message=f"Repairman {self.state.name} is busy, cannot repair machine {machine.state.name}",
                 )
             )
             return
 
-        if machine.machine_state.is_state("broken"):
-            machine.machine_state.set_state("repair")
-            self.repairman_state.set_state("working")
-            self.repairman_state.logs.append(
-                QLogEntry(
-                    timestamp=self.repairman_state.get_environment().get_timestamp_now(),
-                    message=f"Repairman started work on machine {machine.machine_state.name}",
+        if machine.state.state == "broken":
+            self.state.state = "working"
+            self.state.logs.append(
+                QLogEntry.make_event(
+                    timestamp=self.state.get_environment().sim_timestamp(),
+                    message=f"Repairman started work on machine {machine.state.name}",
                 )
             )
-            self.repairman_state.logs.append(
-                QLogEntry(
-                    timestamp=self.repairman_state.get_environment().get_timestamp_now(),
-                    duration=self.repairman_state.time_to_repair,
-                    type_="Task",
-                    message=f"Repair {machine.machine_state.name}",
+
+            repair_task_log = QLogEntry.make_task(
+                timestamp=self.state.get_environment().sim_timestamp(),
+                duration=self.state.time_to_repair,
+                message=f"Repair {machine.state.name}",
+            )
+            self.state.logs.append(repair_task_log)
+
+            yield self.state.get_environment().timeout(self.state.time_to_repair)
+            repair_task_log.progress = 100
+
+            self.state.logs.append(
+                QLogEntry.make_event(
+                    timestamp=self.state.get_environment().sim_timestamp(),
+                    message=f"Repair completed work on machine {machine.state.name}",
                 )
             )
-            yield self.repairman_state.get_environment().timeout(self.repairman_state.time_to_repair)
-            self.repairman_state.logs.append(
-                QLogEntry(
-                    timestamp=self.repairman_state.get_environment().get_timestamp_now(),
-                    message=f"Repair completed work on machine {machine.machine_state.name}",
-                )
-            )
-            self.repairman_state.set_state("idle")
+            self.state.state = "idle"
         else:
-            self.repairman_state.logs.append(
-                QLogEntry(
-                    timestamp=self.repairman_state.get_environment().get_timestamp_now(),
-                    message=f"Machine {machine.machine_state.name} is not broken, no repair needed",
+            self.state.logs.append(
+                QLogEntry.make_event(
+                    timestamp=self.state.get_environment().sim_timestamp(),
+                    message=f"Machine {machine.state.name} is not broken, no repair needed",
                 )
             )
-        yield self.repairman_state.get_environment().timeout(self.repairman_state.downtime)

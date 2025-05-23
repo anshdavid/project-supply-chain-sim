@@ -26,7 +26,7 @@ def test_factory(duration: int = 36000):
                 state="idle",
                 mean_operation_time=600.0,
                 sigma=1.0,
-                mttf=4 * 60 * 60,
+                mttf=1 * 60 * 60,
                 fixed_time_to_produce=True,
             ),
             QMachine.QMachineConfig(
@@ -54,7 +54,7 @@ def test_factory(duration: int = 36000):
     factory = QFactory.from_config(env, config)
 
     factory.run(100)
-    env.run(100000)
+    env.run(until=factory.production_complete_event)
 
     sim_log = QSimulationLog.from_factory(
         launch_timestamp=env.simulation_period,
@@ -63,6 +63,10 @@ def test_factory(duration: int = 36000):
         description="Simulation log",
         factory=factory,
     )
+
+    print(env.now)
+    for machine in factory.state._machine_store.items:
+        print(machine.state.parts_produced)
 
     # with open(rf"/app/logs/{file_name}" + "_simlog.json", "w", encoding="utf-8") as f:
     #     # with open(r"/app/logs/simlog.json", "w", encoding="utf-8") as f:

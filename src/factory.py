@@ -21,10 +21,11 @@ Usage:
 """
 
 from __future__ import annotations
+import queue
 from typing import cast
 
 from pydantic import BaseModel, Field, PrivateAttr
-from simpy import FilterStore, Resource
+from simpy import Container, FilterStore, Resource, Store
 
 from src.environment import QEnvironment
 from src.machine import QMachine
@@ -96,6 +97,7 @@ class QFactory:
         _machine_store: FilterStore = PrivateAttr()
         _repairman_store: FilterStore = PrivateAttr()
         _repairman_resource: Resource = PrivateAttr()
+        _machine_resource: Resource = PrivateAttr()
 
         def set_environment(self, env: QEnvironment):
             """
@@ -133,6 +135,18 @@ class QFactory:
             """
             self._repairman_store = repairman_store
 
+        def set_machine_resource(self, machine_resource: Resource):
+            """
+            Set the machine request resource.
+            """
+            self._machine_resource = machine_resource
+
+        def get_machine_resource(self) -> Resource:
+            """
+            Get the machine request resource.
+            """
+            return self._machine_resource
+
         def set_repairman_resource(self, repairman_resource: Resource):
             """
             Set the repairman request resource.
@@ -166,6 +180,8 @@ class QFactory:
             factory_instance.add_repairman(repair)
 
         factory_instance.state.set_repairman_resource(Resource(env, capacity=len(config.repairman)))
+        factory_instance.state.set_machine_resource(Resource(env, capacity=len(config.machines)))
+
         return factory_instance
 
     def __init__(self, name: str, env: QEnvironment):
@@ -180,6 +196,9 @@ class QFactory:
         self.state.set_environment(env)
         self.state.set_machine_store(FilterStore(env))
         self.state.set_repairman_store(FilterStore(env))
+        self.orders = Container(env)
+        self.order_semaphore = Resource(env, capacity=1)
+        self.production_complete_event = env.event()
 
     def add_machine(self, machine: QMachine):
         """
@@ -193,18 +212,13 @@ class QFactory:
         """
         self.state.get_repairman_store().items.append(repairman)
 
-    def start_monitor_machine_p(self, machine: QMachine):
+    def process_monitor_machine(self, machine: QMachine):
         """
         Monitor a machine's state and log significant events.
         """
         while True:
             if machine.state.state == "broken":
-                self.state.logs.append(
-                    QLogEntry.make_event(
-                        timestamp=self.state.get_environment().sim_timestamp(),
-                        message=f"Machine {machine.state.name} is broken in factory, issuing repair",
-                    )
-                )
+                self.state.get_environment().timeout(1)
 
                 with self.state.get_repairman_resource().request() as request:
                     yield request
@@ -214,33 +228,44 @@ class QFactory:
                     )
                     repairman = cast(QRepairman, repairman_)
 
-                    self.state.logs.append(
-                        QLogEntry.make_event(
-                            timestamp=self.state.get_environment().sim_timestamp(),
-                            message=f"Repairman {repairman.state.name} is repairing machine {machine.state.name}",
-                        )
-                    )
+                    yield self.state.get_environment().process(repairman.process_repair_machine(machine))
 
-                    yield self.state.get_environment().process(repairman.repair_machine_p(machine))
-
-                    self.state.logs.append(
-                        QLogEntry.make_event(
-                            timestamp=self.state.get_environment().sim_timestamp(),
-                            message=f"Repairman {repairman.state.name} finished repairing machine {machine.state.name}",
-                        )
-                    )
-
-                    self.state.get_repairman_store().put(repairman_)
-                    machine.restart()
                     yield self.state.get_environment().timeout(1)
+
+                    machine.restart()
+                    self.state.get_repairman_store().put(repairman_)
 
             yield self.state.get_environment().timeout(1)
 
-    def run(self, parts_to_produce: int):
+    def process_order(self, machine: QMachine):
+        while True:
+            if machine.state.state == "idle" and self.orders.level > 0:
+                yield self.orders.get(1)
+                yield self.state.get_environment().process(machine.process_produce(1))
+                if machine.state.parts_pending > 0:
+                    self.orders.put(1)
+
+            yield self.state.get_environment().timeout(1)
+
+    def process_production_complete(self):
+        while True:
+            if all(machine.state.state == "idle" for machine in self.state.get_machine_store().items):
+                if self.orders.level == 0:
+                    self.production_complete_event.succeed()
+            yield self.state.get_environment().timeout(1)
+
+    def run(self, orders: int):
         """
         Start the factory's main processes, including machine processing and monitoring.
         """
 
         for machine in self.state.get_machine_store().items:
-            self.state.get_environment().process(machine.produce_p(parts_to_produce))
-            self.state.get_environment().process(self.start_monitor_machine_p(machine))
+            self.state.get_environment().process(self.process_monitor_machine(machine))
+            self.state.get_environment().process(self.process_order(machine))
+
+        self.orders.put(orders)
+
+        self.state.get_environment().process(self.process_production_complete())
+
+        # for machine in self.state.get_machine_store().items:
+        #     self.state.get_environment().process(machine.produce_p(fifo_queue   ))

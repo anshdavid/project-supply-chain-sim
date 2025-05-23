@@ -174,7 +174,7 @@ class QRepairman:
 
         self.state.set_environment(env)
 
-    def repair_machine_p(self, machine: QMachine):
+    def process_repair_machine(self, machine: QMachine):
         """
         Simulate the repair process for a machine.
         If the machine is broken, set its state to 'repair', set the repairman to 'working',

@@ -149,16 +149,13 @@ class QMachine:
         fixed_time_to_produce: bool = Field(default=True, description="Use fixed time for production events")
         mean_operation_time: float = Field(description="Mean time per part", gt=0)
         sigma: float = Field(description="Standard deviation in operation time")
-        fixed_time_to_failure: bool = Field(default=True, description="Use fixed time for failure events")
+        fixed_time_to_failure: bool = Field(default=False, description="Use fixed time for failure events")
         mttf: float = Field(description="Mean Time to Failures", gt=0)
 
         parts_produced: int = Field(default=0, description="Total parts produced by the machine")
         parts_pending: int = Field(default=0, description="Pending parts to be produced")
 
         logs: list[QLogEntry] = []
-
-        timeout_to_failure: float = Field(default=0, description="Timeout event for failure")
-        timeout_to_production: float = Field(default=0, description="Timeout event for production")
 
         _environment: QEnvironment = PrivateAttr()
         _factory: QFactory | None = PrivateAttr(default=None)
@@ -252,12 +249,10 @@ class QMachine:
         self.state.set_environment(env)
         self.state.set_state("idle")
 
-        ttf = calculate_timeout_to_failure(self.state.mttf, fixed_time=self.state.fixed_time_to_produce)
-        self.state.timeout_to_failure = ttf
+        ttf = calculate_timeout_to_failure(self.state.mttf, fixed_time=self.state.fixed_time_to_failure)
         self.event_failure = self.state.get_environment().timeout(ttf)
-        self.event_production = self.state.get_environment().timeout(0)
 
-    def produce_p(self, parts_to_produce: int):
+    def process_produce(self, parts_to_produce: int):
         """
         Simulate the production of a specified number of parts by the machine.
 
@@ -285,41 +280,34 @@ class QMachine:
             return
 
         self.state.parts_pending = parts_to_produce
-
-        self.state.logs.append(
-            QLogEntry.make_event(
-                timestamp=self.state.get_environment().sim_timestamp(),
-                message="Starting production",
-            )
-        )
+        self.state.set_state("working")
 
         for i in range(parts_to_produce):
+
             ttp = calculate_timeout_to_produce(
                 self.state.mean_operation_time,
                 self.state.sigma,
                 fixed_time=self.state.fixed_time_to_produce,
             )
-            self.state.timeout_to_production = ttp
-            self.event_production = self.state.get_environment().timeout(ttp)
+            event_production = self.state.get_environment().timeout(ttp)
 
+            # TODO: add expected task log (viz-timeline)
             current_task_log = QLogEntry.make_task(
                 timestamp=self.state.get_environment().sim_timestamp(),
                 duration=ttp,
-                message=f"Starting production {i + 1} / {self.state.parts_pending + i}",
+                message=f"Starting production {i + 1} / {parts_to_produce}",
             )
             self.state.logs.append(current_task_log)
 
-            self.state.set_state("working")
+            yield self.event_failure | event_production
 
-            yield self.event_failure | self.event_production
-
-            if self.event_production.processed:
+            if event_production.processed:
                 self.state.parts_produced += 1
                 self.state.parts_pending -= 1
                 current_task_log.progress = 100
+                current_task_log.data |= {"parts_produced": self.state.parts_produced}
 
             elif self.event_failure.processed:
-
                 self.state.set_state("broken")
 
                 end_time = self.state.get_environment().sim_timestamp()
@@ -332,16 +320,10 @@ class QMachine:
 
                 # FIX: for progress bar not working
                 current_task_log.duration = (end_time - current_task_log.timestamp) / 1000
-                current_task_log.message += f"\n(Complete {current_task_log.progress}%)"
+                current_task_log.message += f"\n(Failed - {current_task_log.progress}%)"
                 return
 
         self.state.set_state("idle")
-        self.state.logs.append(
-            QLogEntry.make_event(
-                timestamp=self.state.get_environment().sim_timestamp(), message="idle after production"
-            )
-        )
-
         return
 
     def restart(self):
@@ -352,18 +334,6 @@ class QMachine:
         Otherwise, sets the machine state to "idle" if not already idle.
         """
         self.state.state = "idle"
-
-        ttf = calculate_timeout_to_failure(self.state.mttf, fixed_time=False)
-        self.state.timeout_to_failure = ttf
+        self.state.parts_pending = 0
+        ttf = calculate_timeout_to_failure(self.state.mttf, fixed_time=self.state.fixed_time_to_failure)
         self.event_failure = self.state.get_environment().timeout(ttf)
-
-        if self.state.parts_pending > 0:
-            self.state.logs.append(
-                QLogEntry.make_event(timestamp=self.state.get_environment().sim_timestamp(), message="restarted")
-            )
-            self.state.get_environment().process(self.produce_p(self.state.parts_pending))
-            return
-
-        self.state.logs.append(
-            QLogEntry.make_event(timestamp=self.state.get_environment().sim_timestamp(), message="restarted and idle")
-        )

@@ -170,7 +170,7 @@ class QFactory:
 
             yield self.state.get_environment().timeout(1)
 
-    def process_order(self, machine: QMachine):
+    def process_process_order(self, machine: QMachine):
         """
         Processes orders for a given machine in a continuous loop.
         This generator function manages the production process for a machine by:
@@ -189,7 +189,7 @@ class QFactory:
 
             yield self.state.get_environment().timeout(1)
 
-    def process_production_complete(self):
+    def process_monitor_production(self):
         """
         Monitors the production process and triggers the production_complete_event when all machines are idle and there are no pending orders.
 
@@ -209,8 +209,8 @@ class QFactory:
 
         for machine in self.state.get_machine_store().items:
             self.state.get_environment().process(self.process_monitor_machine(machine))
-            self.state.get_environment().process(self.process_order(machine))
+            self.state.get_environment().process(self.process_process_order(machine))
 
         self.orders.put(orders)
 
-        self.state.get_environment().process(self.process_production_complete())
+        self.state.get_environment().process(self.process_monitor_production())

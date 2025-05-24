@@ -15,7 +15,6 @@ def test_factory(duration: int = 36000):
 
     current_datetime = datetime.now(timezone.utc)
     current_time = current_datetime.strftime("%Y-%m-%dT%H:%M:%SZ")
-    # file_name = current_datetime.strftime("%Y-%m-%d-%H-%M-%S")
 
     env = QEnvironment(current_time)
     config = QFactory.QFactoryConfig(
@@ -60,7 +59,7 @@ def test_factory(duration: int = 36000):
     )
     factory = QFactory.from_config(env, config)
 
-    factory.run(500)
+    factory.run(277)
     env.run(until=factory.production_complete_event)
 
     sim_log = QSimulationLog.from_factory(

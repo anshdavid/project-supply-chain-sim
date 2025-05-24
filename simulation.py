@@ -25,35 +25,42 @@ def test_factory(duration: int = 36000):
                 name="M1",
                 state="idle",
                 mean_operation_time=600.0,
-                sigma=1.0,
+                sigma_operation_time=1.0,
                 mttf=1 * 60 * 60,
                 fixed_time_to_produce=True,
+                fixed_time_to_failure=False,
             ),
             QMachine.QMachineConfig(
                 name="M2",
                 state="idle",
                 mean_operation_time=300.0,
-                sigma=1.0,
+                sigma_operation_time=1.0,
                 mttf=1 * 60 * 60,
                 fixed_time_to_produce=True,
+                fixed_time_to_failure=False,
             ),
             QMachine.QMachineConfig(
                 name="M3",
                 state="idle",
                 mean_operation_time=60.0,
-                sigma=1.0,
+                sigma_operation_time=1.0,
                 mttf=1 * 60 * 60,
                 fixed_time_to_produce=True,
+                fixed_time_to_failure=False,
             ),
         ],
         repairman=[
-            QRepairman.QRepairmanConfig(name="R1", time_to_repair=300, downtime=60),
-            QRepairman.QRepairmanConfig(name="R2", time_to_repair=300, downtime=60),
+            QRepairman.QRepairmanConfig(
+                name="R1", state="idle", time_to_repair=300, sigma_time_to_repair=1.0, downtime=60
+            ),
+            QRepairman.QRepairmanConfig(
+                name="R2", state="idle", time_to_repair=300, sigma_time_to_repair=1.0, downtime=60
+            ),
         ],
     )
     factory = QFactory.from_config(env, config)
 
-    factory.run(100)
+    factory.run(500)
     env.run(until=factory.production_complete_event)
 
     sim_log = QSimulationLog.from_factory(
@@ -65,7 +72,7 @@ def test_factory(duration: int = 36000):
     )
 
     print(env.now)
-    for machine in factory.state._machine_store.items:
+    for machine in factory.state.get_machine_store().items:
         print(machine.state.parts_produced)
 
     # with open(rf"/app/logs/{file_name}" + "_simlog.json", "w", encoding="utf-8") as f:

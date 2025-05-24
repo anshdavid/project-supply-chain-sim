@@ -21,9 +21,11 @@ Usage:
 from __future__ import annotations
 
 import random
+from socket import timeout
 from typing import Literal, TYPE_CHECKING
 
 from pydantic import BaseModel, Field, PrivateAttr
+from simpy import Interrupt as simpy_interrupt, Process
 
 from src.environment import QEnvironment
 from src.logs import QLogEntry
@@ -164,11 +166,18 @@ class QMachine:
         self.state._environment = env
         ttf = calculate_timeout_to_failure(self.state.mttf, fixed_time=self.state.fixed_time_to_failure)
         self.event_failure = self.state.get_environment().timeout(ttf)
+        self.event_production: Process | None = None
 
     def process_produce(self, parts_to_produce: int):
         """
         Simulate the production of a specified number of parts by the machine.
         """
+
+        def recover():
+            print("Recovering machine...")
+
+        def produce():
+            print("Producing parts...")
 
         if self.state.state != "idle":
             self.state.logs.append(
@@ -225,6 +234,58 @@ class QMachine:
 
         self.state.set_state("idle")
         return
+
+    def process_break_machine(self):
+        """
+        Simulate the machine breaking down when it is in the working state.
+        If the machine is already broken, do nothing.
+        """
+
+        event_failure = self.state.get_environment().timeout(
+            calculate_timeout_to_failure(self.state.mttf, fixed_time=self.state.fixed_time_to_failure)
+        )
+
+        while True:
+            if self.state.state == "working" and self.event_production is not None and self.event_production.triggered:
+                yield self.state.get_environment().timeout(1) | event_failure
+
+                if event_failure.processed:
+                    self.state.set_state("broken")
+                    event_failure = self.state.get_environment().timeout(
+                        calculate_timeout_to_failure(self.state.mttf, fixed_time=self.state.fixed_time_to_failure)
+                    )
+                    self.event_production.interrupt(f"broke after {getattr(event_failure, '_delay')} seconds working")
+
+            yield self.state.get_environment().timeout(1)
+
+    #     while True:
+    #         if self.state.state == "working":
+    #             ...
+    #         else:
+    #             self.state.get_environment().timeout(1)
+
+    #             yield self.state.get_environment().timeout(1)
+
+    #             repairman_ = (
+    #                 yield self.state.get_factory()
+    #                 .get_repairman_store()
+    #                 .get(lambda repairman: repairman.state.state == "idle")
+    #             )
+    #             repairman = cast(QRepairman, repairman_)
+
+    #             yield self.state.get_environment().process(repairman.process_repair_machine(self))
+
+    #             yield self.state.get_environment().timeout(1)
+
+    #             self.restart()
+
+    #             self.state.get_factory().get_repairman_store().put(repairman_)
+    #     if self.state.state == "broken":
+    #         return
+
+    #     self.state.set_state("broken")
+    #     self.event_failure = None
+    #     self.state.get_environment().timeout(0)
 
     def restart(self):
         """

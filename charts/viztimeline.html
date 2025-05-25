@@ -21,6 +21,13 @@
 
         }
 
+        .vis-item.expected {
+            background-color: rgba(255, 0, 0, 0.15);
+            border-style: dashed !important;
+            z-index: 0;
+
+        }
+
         #uploadSection {
             display: flex;
             align-items: center;
@@ -66,8 +73,6 @@
             padding-left: 10px;
         }
     </style>
-    <!-- <link rel="stylesheet" href="https://visjs.github.io/vis-timeline/styles/vis-timeline-graph2d.css"> -->
-
     <link href="https://unpkg.com/vis-timeline@latest/styles/vis-timeline-graph2d.css" rel="stylesheet"
         type="text/css" />
 
@@ -86,8 +91,6 @@
         </div>
     </div>
 
-
-    <!-- <script src="https://visjs.github.io/vis-timeline/standalone/umd/vis-timeline-graph2d.js"></script> -->
     <script src="https://unpkg.com/vis-timeline@latest/standalone/umd/vis-timeline-graph2d.js"></script>
 
     <script>

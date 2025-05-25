@@ -22,4 +22,4 @@ class QEnvironment(simpy.Environment):
         Calculates the real-world timestamp w.r.t. simulation period in milliseconds based on the simulation period and current offset.
         """
 
-        return int(round(self.simulation_period_timestamp + self.now + offset, 2)) * 1000
+        return int(round(self.simulation_period_timestamp + self.now + offset, 2))

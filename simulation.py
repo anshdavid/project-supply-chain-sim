@@ -62,17 +62,13 @@ def test_factory(duration: int = 36000):
     factory.run(277)
     env.run(until=factory.production_complete_event)
 
+    # fmt: off
     sim_log = QSimulationLog.from_factory(
-        launch_timestamp=env.simulation_period,
-        simulation_duration=duration,
-        simulation_runtime=env.now,
-        description="Simulation log",
-        factory=factory,
-    )
+        launch_timestamp=env.simulation_period, simulation_duration=duration, simulation_runtime=env.now, description="Simulation log", factory=factory)  # fmt:on
 
-    print(env.now)
-    for machine in factory.state.get_machine_store().items:
-        print(machine.state.parts_produced)
+    # print(env.now)
+    # for machine in factory.state.get_machine_store().items:
+    #     print(machine.state.parts_produced)
 
     # with open(rf"/app/logs/{file_name}" + "_simlog.json", "w", encoding="utf-8") as f:
     #     # with open(r"/app/logs/simlog.json", "w", encoding="utf-8") as f:
@@ -82,7 +78,7 @@ def test_factory(duration: int = 36000):
     #     json.dump(sim_log.anychart_dump(), f, indent=4)
 
     with open(r"/app/logs/viztimeline.json", "w", encoding="utf-8") as f:
-        json.dump(sim_log.viz_dump(), f, indent=4)
+        json.dump(sim_log.viz_dump(log_events=False), f, indent=4)
 
 
 if __name__ == "__main__":

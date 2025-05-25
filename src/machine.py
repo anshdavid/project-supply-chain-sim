@@ -21,7 +21,7 @@ Usage:
 from __future__ import annotations
 
 import random
-from socket import timeout
+from datetime import datetime
 from typing import Literal, TYPE_CHECKING
 
 from pydantic import BaseModel, Field, PrivateAttr
@@ -122,7 +122,9 @@ class QMachine:
             self.state = state
             self.logs.append(
                 QLogEntry.make_event(
-                    timestamp=self.get_environment().now_timestamp(), message=f"Machine state changed to {state}"
+                    start=self.get_environment().now_timestamp(),
+                    content=f"Machine state changed to {state}",
+                    group=self.name,
                 )
             )
 
@@ -166,7 +168,8 @@ class QMachine:
         self.state._environment = env
         ttf = calculate_timeout_to_failure(self.state.mttf, fixed_time=self.state.fixed_time_to_failure)
         self.event_failure = self.state.get_environment().timeout(ttf)
-        self.event_production: Process | None = None
+        # self.event_failure = self.state.get_environment().timeout(0)
+        # self.event_production = self.state.get_environment().timeout(0)
 
     def process_produce(self, parts_to_produce: int):
         """
@@ -182,8 +185,9 @@ class QMachine:
         if self.state.state != "idle":
             self.state.logs.append(
                 QLogEntry.make_event(
-                    timestamp=self.state.get_environment().now_timestamp(),
-                    message=f"Cannot produce parts while in state {self.state.state}",
+                    start=self.state.get_environment().now_timestamp(),
+                    content=f"Cannot produce parts while in state {self.state.state}",
+                    group=self.state.name,
                 )
             )
             return
@@ -198,65 +202,72 @@ class QMachine:
                 self.state.sigma_operation_time,
                 fixed_time=self.state.fixed_time_to_produce,
             )
-            event_production = self.state.get_environment().timeout(ttp)
 
-            # TODO: add expected task log (viz-timeline)
-            current_task_log = QLogEntry.make_task(
-                timestamp=self.state.get_environment().now_timestamp(),
-                duration=ttp,
-                message=f"Starting production {i + 1} / {parts_to_produce}",
-            )
-            self.state.logs.append(current_task_log)
+            start_time = self.state.get_environment().now_timestamp()
+            expected_end_time = start_time + int(ttp)
+
+            # fmt: off
+            log_expected_production = QLogEntry.make_task(
+                start=start_time, end=expected_end_time, content="", group=self.state.name, class_name="expected")  # fmt: on
+
+            self.state.logs.append(log_expected_production)
+
+            event_production = self.state.get_environment().timeout(ttp)
 
             yield self.event_failure | event_production
 
             if event_production.processed:
                 self.state.parts_produced += 1
                 self.state.parts_pending -= 1
-                current_task_log.progress = 100
-                current_task_log.data |= {"parts_produced": self.state.parts_produced}
+
+                self.state.logs.append(
+                    QLogEntry.make_task(
+                        start=start_time,
+                        end=expected_end_time,
+                        content=f"Producing {i + 1} / {parts_to_produce}",
+                        group=self.state.name,
+                    )
+                )
 
             elif self.event_failure.processed:
                 self.state.set_state("broken")
-
-                end_time = self.state.get_environment().now_timestamp()
-
-                current_task_log.progress = calc_task_progress(
-                    task_start_time=current_task_log.timestamp,
-                    task_duration=current_task_log.duration,
-                    task_actual_end_time=end_time,
+                actual_end = self.state.get_environment().now_timestamp()
+                progress = calc_task_progress(start=start_time, end=expected_end_time, actual_end=actual_end)
+                self.state.logs.append(
+                    QLogEntry.make_task(
+                        start=start_time,
+                        end=actual_end,
+                        content=f"Producing {i + 1} / {parts_to_produce} failed ({progress}%)",
+                        group=self.state.name,
+                    )
                 )
-
-                # FIX: for progress bar not working
-                current_task_log.duration = (end_time - current_task_log.timestamp) / 1000
-                current_task_log.message += f"\n(Failed - {current_task_log.progress}%)"
                 return
 
         self.state.set_state("idle")
         return
 
-    def process_break_machine(self):
-        """
-        Simulate the machine breaking down when it is in the working state.
-        If the machine is already broken, do nothing.
-        """
+    # def process_break_machine(self):
+    #     """
+    #     Simulate the machine breaking down when it is in the working state.
+    #     If the machine is already broken, do nothing.
+    #     """
 
-        event_failure = self.state.get_environment().timeout(
-            calculate_timeout_to_failure(self.state.mttf, fixed_time=self.state.fixed_time_to_failure)
-        )
+    #     event_failure = self.state.get_environment().timeout(
+    #         calculate_timeout_to_failure(self.state.mttf, fixed_time=self.state.fixed_time_to_failure)
+    #     )
 
-        while True:
-            if self.state.state == "working" and self.event_production is not None and self.event_production.triggered:
-                yield self.state.get_environment().timeout(1) | event_failure
+    #     while True:
+    #         if self.state.state == "working" and self.event_production is not None and self.event_production.triggered:
+    #             yield self.state.get_environment().timeout(1) | event_failure
 
-                if event_failure.processed:
-                    self.state.set_state("broken")
-                    event_failure = self.state.get_environment().timeout(
-                        calculate_timeout_to_failure(self.state.mttf, fixed_time=self.state.fixed_time_to_failure)
-                    )
-                    self.event_production.interrupt(f"broke after {getattr(event_failure, '_delay')} seconds working")
+    #             if event_failure.processed:
+    #                 self.state.set_state("broken")
+    #                 event_failure = self.state.get_environment().timeout(
+    #                     calculate_timeout_to_failure(self.state.mttf, fixed_time=self.state.fixed_time_to_failure)
+    #                 )
+    #                 self.event_production.interrupt(f"broke after {getattr(event_failure, '_delay')} seconds working")
 
-            yield self.state.get_environment().timeout(1)
+    #         yield self.state.get_environment().timeout(1)
 
     #     while True:
     #         if self.state.state == "working":

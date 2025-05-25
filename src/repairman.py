@@ -83,8 +83,9 @@ class QRepairman:
             self.state = state
             self.logs.append(
                 QLogEntry.make_event(
-                    timestamp=self._environment.now_timestamp(),
-                    message=f"Repairman {self.name} state changed to {state}",
+                    start=self._environment.now_timestamp(),
+                    content=f"Repairman {self.name} state changed to {state}",
+                    group=self.name,
                 )
             )
 
@@ -133,9 +134,10 @@ class QRepairman:
         """
         if not self.state.state == "idle":
             self.state.logs.append(
-                QLogEntry(
-                    timestamp=self.state.get_environment().now_timestamp(),
-                    message=f"Repairman {self.state.name} is busy, cannot repair machine {machine.state.name}",
+                QLogEntry.make_event(
+                    start=self.state.get_environment().now_timestamp(),
+                    content=f"Repairman {self.state.name} is busy, cannot repair machine {machine.state.name}",
+                    group=self.state.name,
                 )
             )
             return
@@ -144,20 +146,21 @@ class QRepairman:
             self.state.set_state("working")
 
             repair_task_log = QLogEntry.make_task(
-                timestamp=self.state.get_environment().now_timestamp(),
-                duration=self.state.time_to_repair,
-                message=f"Repair {machine.state.name}",
+                start=self.state.get_environment().now_timestamp(),
+                end=self.state.get_environment().now_timestamp(self.state.time_to_repair),
+                content=f"Repair {machine.state.name}",
+                group=self.state.name,
             )
             self.state.logs.append(repair_task_log)
 
             yield self.state.get_environment().timeout(self.state.time_to_repair)
-            repair_task_log.progress = 100
             self.state.set_state("idle")
 
         else:
             self.state.logs.append(
                 QLogEntry.make_event(
-                    timestamp=self.state.get_environment().now_timestamp(),
-                    message=f"Machine {machine.state.name} is not broken, no repair needed",
+                    start=self.state.get_environment().now_timestamp(),
+                    content=f"Machine {machine.state.name} is not broken, no repair needed",
+                    group=self.state.name,
                 )
             )

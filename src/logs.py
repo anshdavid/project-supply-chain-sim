@@ -14,10 +14,13 @@ Usage:
 
 from __future__ import annotations
 
-from typing import Literal, TYPE_CHECKING
+from typing import Literal, ClassVar, TYPE_CHECKING
 from datetime import datetime
 
+import threading
+
 from pydantic import BaseModel, Field
+
 
 if TYPE_CHECKING:
     from src.factory import QFactory
@@ -25,70 +28,71 @@ if TYPE_CHECKING:
 
 class QLogEntry(BaseModel):
     """
-    Represents a generic log entry for simulation events.
-
-    Attributes:
-        timestamp (int | float): The simulation time when the log entry was created, in seconds since epoch.
-        duration (int | float): Duration of the simulation event, 0 if type_ is "Event", > 0 if type_ is "Task".
-        type_ (Literal["Event", "Task"]): Type of log entry (default: "Event").
-        message (str): The log message describing the event or task.
-        data (dict): Optional additional data related to the log event (default: empty dict).
+    Schema for a timeline item/log entry compatible with vis-timeline's item properties.
+    The 'id' field autoincrements from 1 by default.
     """
 
-    timestamp: int | float  # Accept both float (sim time) and str (UTC ISO8601)
-    duration: int | float = Field(default=0, description="Duration of the log entry")
-    progress: int | float = Field(default=0, description="Progress of the log entry")
-    type_: Literal["Event", "Task", "Marker"] = Field(default="Event", description="Type of log entry")
-    message: str = Field(description="Log message")
-    data: dict = Field(default_factory=dict, description="Additional data related to the log")
+    _counter: ClassVar[int] = 1
+    _lock: ClassVar[threading.Lock] = threading.Lock()
+
+    id: int | str | None = Field(
+        default=None,
+        description="An id for the item. Using an id is not required but highly recommended. An id is needed when dynamically adding, updating, and removing items in a DataSet.",
+    )
+
+    type: Literal["box", "point", "range", "background"] = Field(
+        description="The type of the item. Can be 'box' (default), 'point', 'range', or 'background'. Types 'box' and 'point' need a start date, the types 'range' and 'background' needs both a start and end date.",
+    )
+
+    content: str = Field(description="The contents of the item. Can be plain text or HTML code.")
+
+    start: str = Field(description="ISO8601 format, e.g. '2025-05-25T19:45:49'")
+
+    end: str | None = Field(default=None, description="ISO8601 format, e.g. '2025-05-25T19:45:49'")
+
+    editable: bool = Field(
+        default=False,
+        description="If true, the item can be edited by the user. If false, the item is not editable.",
+    )
+
+    selectable: bool = Field(
+        default=True,
+        description="If true, the item can be selected by the user. If false, the item is not selectable.",
+    )
+
+    group: None | str = Field(default=None, description="The group to which the item belongs (optional).")
+
+    className: None | Literal["expected"] = Field(
+        default=None, description="A className can be used to give items an individual css style. "
+    )
+
+    tooltip: None | str = Field(default=None, description="A tooltip can be used to give items an individual tooltip.")
 
     @classmethod
     def make_task(
-        cls, timestamp: int | float, duration: int | float, message: str, data: dict | None = None
+        cls,
+        start: int,
+        end: int,
+        content: str,
+        group: str,
+        id_: int | str | None = None,
+        class_name: None | Literal["expected"] = None,
     ) -> QLogEntry:
-        """
-        Create a log entry of type "Task".
-
-        Args:
-            timestamp (int | float): The simulation time when the log entry was created.
-            duration (int | float): Duration of the task.
-            message (str): The log message describing the task.
-            data (dict, optional): Additional data related to the task.
-
-        Returns:
-            QLogEntry: A log entry of type "Task".
-        """
-        return cls(timestamp=timestamp, duration=duration, type_="Task", message=message, data=data or {})
+        # fmt: off
+        return QLogEntry(
+            id=id_, group=group, type="range", content=content, start=datetime.fromtimestamp(start).isoformat(), end=datetime.fromtimestamp(end).isoformat(), className=class_name
+        )  # fmt: on
 
     @classmethod
-    def make_event(cls, timestamp: int | float, message: str, data: dict | None = None) -> QLogEntry:
-        """
-        Create a log entry of type "Event".
-
-        Args:
-            timestamp (int | float): The simulation time when the log entry was created.
-            message (str): The log message describing the event.
-            data (dict, optional): Additional data related to the event.
-
-        Returns:
-            QLogEntry: A log entry of type "Event".
-        """
-        return cls(timestamp=timestamp, duration=0, type_="Event", message=message, data=data or {})
+    def make_event(cls, start: int, content: str, group: str, id_: int | str | None = None) -> QLogEntry:
+        # fmt: off
+        return QLogEntry(
+            id=id_, group=group, type="point", content=content, start=datetime.fromtimestamp(start).isoformat(), end=None, editable=False, selectable=False
+        )  # fmt: on
 
     @classmethod
-    def make_marker(cls, timestamp: int | float, message: str, data: dict | None = None) -> QLogEntry:
-        """
-        Create a log entry of type "Marker".
-
-        Args:
-            timestamp (int | float): The simulation time when the log entry was created.
-            message (str): The log message describing the marker.
-            data (dict, optional): Additional data related to the marker.
-
-        Returns:
-            QLogEntry: A log entry of type "Marker".
-        """
-        return cls(timestamp=timestamp, duration=0, type_="Marker", message=message, data=data or {})
+    def make_marker(cls, *args, **kwargs) -> QLogEntry | None:
+        _ = 1
 
 
 class QSimulationLog(BaseModel):
@@ -155,54 +159,6 @@ class QSimulationLog(BaseModel):
             repairman_logs=repairman_logs,
         )
 
-    def anychart_dump(self) -> list:
-        """
-        Converts the simulation logs into a format compatible with AnyChart visualizations.
-
-        Returns:
-            list: A list of nodes representing the simulation logs in AnyChart format.
-        """
-        nodes = []
-
-        # Helper to build node
-        def make_node(node_id, node_name, logs: list[QLogEntry]):
-            tasks = []
-            events = []
-            for idx, log in enumerate(logs):
-                if log.type_ == "Task":
-                    start = log.timestamp
-                    # duration is in seconds, convert to ms, add to timestamp, get end date
-                    end_ms = log.timestamp + int(log.duration * 1000)
-                    end = end_ms
-                    tasks.append({"id": f"{node_id}_task_{idx + 1}", "start": start, "end": end})
-                elif log.type_ == "Event":
-                    # Map message to marker type if you want, default to "diamond"
-                    marker_type = log.data.get("marker_type", "diamond")
-                    fill = log.data.get("fill", "#ffa000")
-                    events.append({"value": (log.timestamp), "type": marker_type, "fill": fill})
-
-            children = []
-            if tasks:
-                children.append({"id": f"{node_id}_tasks", "name": "Tasks", "periods": tasks})
-            if events:
-                children.append({"id": f"{node_id}_events", "name": "Events", "markers": events})
-
-            return {"id": node_id, "name": node_name, "children": children}
-
-        # Factory nodes
-        for factory, logs in dict(self.factory_logs).items():
-            nodes.append(make_node(factory, factory, logs))
-
-        # Machine nodes
-        for machine, logs in dict(self.machine_logs).items():
-            nodes.append(make_node(machine, machine, logs))
-
-        # Repairman nodes
-        for repairman, logs in dict(self.repairman_logs).items():
-            nodes.append(make_node(repairman, repairman, logs))
-
-        return nodes
-
     def viz_dump(self, log_events: bool = False) -> dict:
         """
         Converts the simulation logs into a format compatible with timeline visualizations.
@@ -216,48 +172,25 @@ class QSimulationLog(BaseModel):
         data = []
         groups = []
         group_map = {}  # name to group id
-        next_group_id = 1
-        item_id = 1
-        log_events = log_events
+        NEXT_GROUP_ID = 1
+        LOG_EVENTS = log_events
 
-        def add_group(name):
-            nonlocal next_group_id
-            if name not in group_map:
-                group_map[name] = next_group_id
-                groups.append({"id": next_group_id, "content": name})
-                next_group_id += 1
-            return group_map[name]
-
-        # Helper to flatten and collect
         def process(logs: list[QLogEntry], entity_name: str):
-            nonlocal item_id
-            gid = add_group(entity_name)
-            for log in logs:
-                start = datetime.fromtimestamp(log.timestamp / 1000).isoformat()
-                item = {
-                    "id": item_id,
-                    "editable": False,
-                    "content": log.message,
-                    "start": start,
-                    "group": gid,
-                }
-                # Editable: make tasks editable, events readonly
-                if log.type_ == "Task":
-                    if log.duration and float(log.duration) > 0:
-                        # Calculate end date
-                        end_ts = float(log.timestamp) + float(log.duration) * 1000
-                        item["end"] = datetime.fromtimestamp(end_ts / 1000).isoformat()
-                        item["progress"] = log.progress
-                    else:
-                        item["end"] = start
-                if log.type_ == "Event":
-                    item["type"] = "point"
 
-                nonlocal log_events
-                if not log_events and log.type_ == "Event":
+            nonlocal NEXT_GROUP_ID
+            if entity_name not in group_map:
+                group_map[entity_name] = NEXT_GROUP_ID
+                groups.append({"id": NEXT_GROUP_ID, "content": entity_name})
+                NEXT_GROUP_ID += 1
+
+            for log in logs:
+                data.append(log.model_dump())
+
+                if not LOG_EVENTS and log.type == "point":
                     continue
-                data.append(item)
-                item_id += 1
+
+                log.group = str(group_map[entity_name])
+                data.append(log.model_dump())
 
         # Process all logs
         for fac, logs in dict(self.factory_logs).items():

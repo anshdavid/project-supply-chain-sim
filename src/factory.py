@@ -21,7 +21,8 @@ Usage:
 """
 
 from __future__ import annotations
-from typing import cast
+from socket import timeout
+from typing import Any, cast
 
 from pydantic import BaseModel, Field, PrivateAttr
 from simpy import Container, FilterStore, Resource
@@ -53,15 +54,6 @@ class QFactory:
         - Access logs and state via the QFactoryState inner class.
     """
 
-    class QFactoryConfig(BaseModel):
-        """
-        Configuration schema for initializing a QFactory.
-        """
-
-        name: str = Field(description="Name of the factory")
-        machines: list[QMachine.QMachineConfig] = []
-        repairman: list[QRepairman.QRepairmanConfig] = []
-
     class QFactoryState(BaseModel):
         """
         Tracks the current state, resources, and logs of the factory.
@@ -89,6 +81,7 @@ class QFactory:
         _environment: QEnvironment = PrivateAttr()
         _machine_store: FilterStore = PrivateAttr()
         _repairman_store: FilterStore = PrivateAttr()
+        _meta_data: dict[str, Any] = PrivateAttr(dict())
 
         logs: list[QLogEntry] = []
 
@@ -114,15 +107,21 @@ class QFactory:
             return self._repairman_store
 
     @classmethod
-    def from_config(cls, env: QEnvironment, config: QFactoryConfig) -> "QFactory":
+    def from_states(
+        cls,
+        env: QEnvironment,
+        name: str,
+        machines: list[QMachine.QMachineState],
+        repairmen: list[QRepairman.QRepairmanState],
+    ) -> "QFactory":
         """
         Creates a QFactory instance from a configuration object.
         """
 
-        machine_list = [QMachine.from_config(env=env, config=machine_config) for machine_config in config.machines]
-        repairman_list = [QRepairman.from_config(env=env, config=repair_config) for repair_config in config.repairman]
+        machine_list = [QMachine.from_state(env=env, state=machine_config) for machine_config in machines]
+        repairman_list = [QRepairman.from_state(env=env, state=repair_config) for repair_config in repairmen]
 
-        factory_instance = cls(name=config.name, env=env, machines=machine_list, repairmen=repairman_list)
+        factory_instance = cls(name=name, env=env, machines=machine_list, repairmen=repairman_list)
 
         return factory_instance
 
@@ -136,12 +135,21 @@ class QFactory:
 
         self.state._machine_store = FilterStore(env)
         self.state._repairman_store = FilterStore(env)
+        self._actors: list[QMachine | QRepairman] = []
 
+        machine_dict = dict()
         for machine in machines:
             self.state._machine_store.items.append(machine)
+            self._actors.append(machine)
+            machine_dict[machine.state.name] = {"idle": 0, "working": 0, "broken": 0}
+        self.state._meta_data["machines"] = machine_dict
 
+        repairman_dict = dict()
         for repairman in repairmen:
             self.state._repairman_store.items.append(repairman)
+            self._actors.append(repairman)
+            repairman_dict[repairman.state.name] = {"idle": 0, "working": 0}
+        self.state._meta_data["repairmen"] = repairman_dict
 
         self.orders = Container(env)
         self.order_semaphore = Resource(env, capacity=1)
@@ -202,6 +210,19 @@ class QFactory:
                     self.production_complete_event.succeed()
             yield self.state.get_environment().timeout(1)
 
+    def process_monitor_states(self):
+        """
+        Monitors the states of all machines and repairmen in the factory.
+        """
+
+        while True:
+            for actors in self._actors:
+                if isinstance(actors, QMachine):
+                    self.state._meta_data["machines"][actors.state.name][actors.state.state] += 0.1
+                if isinstance(actors, QRepairman):
+                    self.state._meta_data["repairmen"][actors.state.name][actors.state.state] += 0.1
+            yield self.state.get_environment().timeout(0.1)
+
     def run(self, orders: int):
         """
         Start the factory's main processes, including machine processing and monitoring.
@@ -214,3 +235,4 @@ class QFactory:
         self.orders.put(orders)
 
         self.state.get_environment().process(self.process_monitor_production())
+        self.state.get_environment().process(self.process_monitor_states())

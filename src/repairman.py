@@ -49,17 +49,6 @@ class QRepairman:
         QRepairmanState: Tracks the current state, statistics, and logs of the repairman.
     """
 
-    class QRepairmanConfig(BaseModel):
-        """
-        Configuration schema for a QRepairman.
-        """
-
-        name: str = Field(description="Name of the repairman")
-        state: Literal["idle", "working"] = Field(description="State of the repairman")
-        time_to_repair: float = Field(description="Time to repair a machine", gt=0)
-        sigma_time_to_repair: float = Field(description="Standard deviation of repair time", gt=0)
-        downtime: float = Field(description="Downtime for a repairman")
-
     class QRepairmanState(BaseModel):
         """
         Tracks the current state, statistics, and logs of the repairman.
@@ -104,14 +93,14 @@ class QRepairman:
             return self._factory
 
     @classmethod
-    def from_config(cls, env: QEnvironment, config: QRepairman.QRepairmanConfig) -> QRepairman:
+    def from_state(cls, env: QEnvironment, state: QRepairman.QRepairmanState) -> QRepairman:
         """
         Create a QRepairman instance from a configuration object.
         """
 
         # fmt: off
         return cls(
-            env=env, name=config.name, state=config.state, time_to_repair=config.time_to_repair, sigma_time_to_repair=config.sigma_time_to_repair, downtime=config.downtime)  # fmt:on
+            env=env, name=state.name, state=state.state, time_to_repair=state.time_to_repair, sigma_time_to_repair=state.sigma_time_to_repair, downtime=state.downtime)  # fmt:on
 
     # fmt: off
     def __init__(

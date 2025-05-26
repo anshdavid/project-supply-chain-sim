@@ -78,21 +78,6 @@ class QMachine:
         QMachineState: Tracks the current state and statistics of the machine.
     """
 
-    class QMachineConfig(BaseModel):
-        """
-        Configuration schema for a QMachine.
-        """
-
-        name: str = Field(description="Name of the machine")
-        state: Literal["idle", "working", "broken", "off"] = Field(
-            description="Current operational state: idle, working, broken, off"
-        )
-        mean_operation_time: float = Field(description="Mean time per part", gt=0)
-        sigma_operation_time: float = Field(description="Standard deviation in operation time")
-        mttf: float = Field(description="Mean Time to Failures", gt=0)
-        fixed_time_to_produce: bool = Field(description="Use fixed time for production events")
-        fixed_time_to_failure: bool = Field(description="Use fixed time for failure events")
-
     class QMachineState(BaseModel):
         """
         Represents the operational state and statistics of a machine.
@@ -143,14 +128,14 @@ class QMachine:
             return self._environment
 
     @classmethod
-    def from_config(cls, env: QEnvironment, config: QMachineConfig):
+    def from_state(cls, env: QEnvironment, state: QMachineState):
         """
-        Create a QMachine instance from the provided configuration.
+        Create a QMachine instance from the provided state.
         """
 
         # fmt: off
         return cls(
-            env=env, name=config.name, state=config.state, mean_operation_time=config.mean_operation_time, sigma_operation_time=config.sigma_operation_time, mttf=config.mttf, fixed_time_to_produce=config.fixed_time_to_produce, fixed_time_to_failure=config.fixed_time_to_failure)  # fmt:on
+            env=env, name=state.name, state=state.state, mean_operation_time=state.mean_operation_time, sigma_operation_time=state.sigma_operation_time, mttf=state.mttf, fixed_time_to_produce=state.fixed_time_to_produce, fixed_time_to_failure=state.fixed_time_to_failure)  # fmt:on
 
     # fmt: off
     def __init__(

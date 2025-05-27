@@ -20,59 +20,23 @@ def test_factory(duration: int = 36000):
     env = QEnvironment(current_time)
     name = "TestFactory"
     machines = [
+        # fmt: off
         QMachine(
-            env=env,
-            name="M1",
-            state="idle",
-            mean_operation_time=600.0,
-            sigma_operation_time=1.0,
-            mttf=1 * 60 * 60,
-            fixed_time_to_produce=True,
-            fixed_time_to_failure=False,
-            operation_cost=100.0,
-        ),
+            env=env, name="M1", state="idle", mean_operation_time=600.0, sigma_operation_time=1.0, mttf=1 * 60 * 60, fixed_time_to_produce=True, fixed_time_to_failure=False, operation_cost=100.0),
         QMachine(
-            env=env,
-            name="M2",
-            state="idle",
-            mean_operation_time=300.0,
-            sigma_operation_time=1.0,
-            mttf=1 * 60 * 60,
-            fixed_time_to_produce=True,
-            fixed_time_to_failure=False,
-            operation_cost=200.0,
-        ),
+            env=env, name="M2", state="idle", mean_operation_time=300.0, sigma_operation_time=1.0, mttf=1 * 60 * 60, fixed_time_to_produce=True, fixed_time_to_failure=False, operation_cost=200.0),
         QMachine(
-            env=env,
-            name="M3",
-            state="idle",
-            mean_operation_time=60.0,
-            sigma_operation_time=1.0,
-            mttf=1 * 60 * 60,
-            fixed_time_to_produce=True,
-            fixed_time_to_failure=False,
-            operation_cost=300.0,
-        ),
+            env=env, name="M3", state="idle", mean_operation_time=60.0, sigma_operation_time=1.0, mttf=1 * 60 * 60, fixed_time_to_produce=True, fixed_time_to_failure=False, operation_cost=300.0),
+        # fmt:on
     ]
+
     repairmen = [
+        # fmt: off
         QRepairman(
-            env=env,
-            name="R1",
-            state="idle",
-            time_to_repair=300,
-            sigma_time_to_repair=1.0,
-            downtime=60,
-            operation_cost=100.0,
-        ),
+            env=env, name="R1", state="idle", time_to_repair=300, sigma_time_to_repair=1.0, downtime=60, operation_cost=100.0),
         QRepairman(
-            env=env,
-            name="R2",
-            state="idle",
-            time_to_repair=300,
-            sigma_time_to_repair=1.0,
-            downtime=60,
-            operation_cost=100.0,
-        ),
+            env=env, name="R2", state="idle", time_to_repair=300, sigma_time_to_repair=1.0, downtime=60, operation_cost=100.0),
+        # fmt:on
     ]
     factory = QFactory(env, name=name, machines=machines, repairmen=repairmen)
 

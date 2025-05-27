@@ -1,26 +1,3 @@
-"""
-repairman.py
-------------
-Defines the QRepairman class for modeling repairman agents in a factory simulation.
-
-Features:
-    - QRepairman: Simulates a repairman responsible for repairing machines.
-    - QRepairmanConfig: Configuration schema for initializing a repairman.
-    - QRepairmanState: Tracks the current state, statistics, and logs of the repairman.
-    - Methods for state management, environment/factory association, and repair process simulation.
-
-Usage:
-    - Use QRepairman.from_config() or QRepairman.__init__() to create a repairman.
-    - Use repair_machine_p() to simulate the repair process for a machine.
-
-Dependencies:
-    - pydantic: For configuration and state models.
-    - src.environment.QEnvironment: The simulation environment.
-    - src.factory.QFactory: The factory context (referenced via TYPE_CHECKING).
-    - src.machine.QMachine: The machine to be repaired (referenced via TYPE_CHECKING).
-    - src.logs.QLogEntry: Base class for log entries.
-"""
-
 from __future__ import annotations
 from typing import Literal, TYPE_CHECKING
 
@@ -35,40 +12,20 @@ if TYPE_CHECKING:
 
 
 class QRepairman:
-    """
-    QRepairman models a repairman entity responsible for repairing machines in the simulation.
-    Contains configuration, state, and logging for repairman activities.
-
-    Responsibilities:
-        - Tracks repairman state, repair and downtime durations, and logs.
-        - Integrates with QFactory and QEnvironment.
-        - Simulates the repair process for machines.
-
-    Inner Classes:
-        QRepairmanConfig: Configuration schema for initializing a repairman.
-        QRepairmanState: Tracks the current state, statistics, and logs of the repairman.
-    """
 
     class QRepairmanState(BaseModel):
-        """
-        Tracks the current state, statistics, and logs of the repairman.
-        """
-
         name: str = Field(description="Name of the repairman")
         state: Literal["idle", "working"] = Field(description="State of the repairman")
         time_to_repair: float = Field(description="Time to repair a machine", gt=0)
         sigma_time_to_repair: float = Field(description="Standard deviation of repair time", gt=0)
         downtime: float = Field(description="Downtime for a repairman")
+        operation_cost: float = Field(description="Operation cost of the repairman, dollar per hour", gt=0)
 
         _environment: QEnvironment = PrivateAttr()
         _factory: QFactory = PrivateAttr()
         logs: list[QLogEntry] = []
 
         def set_state(self, state: Literal["idle", "working"]):
-            """
-            Set the state of the repairman.
-            """
-
             self.state = state
             self.logs.append(
                 QLogEntry.make_event(
@@ -79,48 +36,22 @@ class QRepairman:
             )
 
         def get_environment(self) -> QEnvironment:
-            """
-            Get the environment associated with the repairman.
-            """
-
             return self._environment
 
         def get_factory(self) -> QFactory | None:
-            """
-            Get the factory associated with the repairman, if any.
-            """
 
             return self._factory
 
-    @classmethod
-    def from_state(cls, env: QEnvironment, state: QRepairman.QRepairmanState) -> QRepairman:
-        """
-        Create a QRepairman instance from a configuration object.
-        """
-
-        # fmt: off
-        return cls(
-            env=env, name=state.name, state=state.state, time_to_repair=state.time_to_repair, sigma_time_to_repair=state.sigma_time_to_repair, downtime=state.downtime)  # fmt:on
-
     # fmt: off
     def __init__(
-            self, env: QEnvironment, name: str, state: Literal["idle", "working"], time_to_repair: float, sigma_time_to_repair: float, downtime: float):  # fmt:on
-        """
-        Initialize a QRepairman instance with the given parameters.
-        """
-
+            self, env: QEnvironment, name: str, state: Literal["idle", "working"], time_to_repair: float, sigma_time_to_repair: float, downtime: float, operation_cost: float):  # fmt:on
         # fmt:off
         self.state: QRepairman.QRepairmanState = QRepairman.QRepairmanState(
-            name=name, state=state, time_to_repair=time_to_repair, sigma_time_to_repair=sigma_time_to_repair, downtime=downtime)  # fmt:on
+            name=name, state=state, time_to_repair=time_to_repair, sigma_time_to_repair=sigma_time_to_repair, downtime=downtime, operation_cost=operation_cost)  # fmt:on
 
         self.state._environment = env
 
     def process_repair_machine(self, machine: QMachine):
-        """
-        Simulate the repair process for a machine.
-        If the machine is broken, set its state to 'repair', set the repairman to 'working',
-        log the repair start, wait for the repair time, then set both to 'idle', log completion, and restart the machine.
-        """
         if not self.state.state == "idle":
             self.state.logs.append(
                 QLogEntry.make_event(

@@ -1,17 +1,3 @@
-"""
-logs.py
--------
-Defines log entry models for use in simulation components such as factories, machines, repairmen, and the overall simulation.
-
-Classes:
-    QLogEntry: Represents individual log entries for events and tasks in the simulation.
-    QSimulationLog: Aggregates simulation-level logs, including factory, machine, and repairman logs, and provides a unified structure for simulation event tracking.
-
-Usage:
-    Use QLogEntry to represent individual events or tasks in the simulation.
-    Use QSimulationLog to aggregate and manage logs across the entire simulation.
-"""
-
 from __future__ import annotations
 
 from typing import Literal, ClassVar, TYPE_CHECKING
@@ -21,17 +7,13 @@ import threading
 
 from pydantic import BaseModel, Field
 
-
 if TYPE_CHECKING:
     from src.factory import QFactory
+    from src.machine import QMachine
+    from src.repairman import QRepairman
 
 
 class QLogEntry(BaseModel):
-    """
-    Schema for a timeline item/log entry compatible with vis-timeline's item properties.
-    The 'id' field autoincrements from 1 by default.
-    """
-
     _counter: ClassVar[int] = 1
     _lock: ClassVar[threading.Lock] = threading.Lock()
 
@@ -96,28 +78,12 @@ class QLogEntry(BaseModel):
 
 
 class QSimulationLog(BaseModel):
-    """
-    Represents a log entry for the overall simulation, aggregating logs from factories, machines, and repairmen.
-
-    Attributes:
-        launch_timestamp (str): Launch timestamp of the simulation in ISO8601 format.
-        simulation_duration (int): Duration of the simulation in seconds.
-        simulation_runtime (int | float): Runtime of the simulation in seconds.
-        description (str): Description of the simulation.
-        factory_logs (dict[str, list[QLogEntry]]): Mapping of factory names to their log entries.
-        machine_logs (dict[str, list[QLogEntry]]): Mapping of machine names to their log entries.
-        repairman_logs (dict[str, list[QLogEntry]]): Mapping of repairman names to their log entries.
-
-    Methods:
-        from_factory: Creates a QSimulationLog instance from a QFactory instance, aggregating logs from the factory, its machines, and repairmen.
-        anychart_dump: Converts the simulation logs into a format compatible with AnyChart visualizations.
-        viz_dump: Converts the simulation logs into a format compatible with timeline visualizations.
-    """
 
     launch_timestamp: str = Field(description="Launch timestamp of the simulation")
     simulation_duration: int = Field(description="Duration of the simulation")
     simulation_runtime: int | float = Field(description="Runtime of the simulation")
     description: str = Field(description="Description of the simulation")
+
     factory_logs: dict[str, list[QLogEntry]] = Field(default_factory=dict, description="List of factory logs")
     machine_logs: dict[str, list[QLogEntry]] = Field(default_factory=dict, description="List of machine logs")
     repairman_logs: dict[str, list[QLogEntry]] = Field(default_factory=dict, description="List of repairman logs")
@@ -131,19 +97,6 @@ class QSimulationLog(BaseModel):
         description: str,
         factory: QFactory,
     ) -> QSimulationLog:
-        """
-        Create a QSimulationLog from a QFactory instance, aggregating logs from the factory, its machines, and repairmen.
-
-        Args:
-            launch_timestamp (str): Launch timestamp of the simulation in ISO8601 format.
-            simulation_duration (int): Duration of the simulation in seconds.
-            simulation_runtime (int | float): Runtime of the simulation in seconds.
-            description (str): Description of the simulation.
-            factory (QFactory): The factory instance to aggregate logs from.
-
-        Returns:
-            QSimulationLog: An aggregated simulation log entry.
-        """
 
         factory_logs = {factory.state.name: list(factory.state.logs)}
         machine_logs = {m.state.name: list(m.state.logs) for m in factory.state.get_machine_store().items}
@@ -160,15 +113,7 @@ class QSimulationLog(BaseModel):
         )
 
     def viz_dump(self, log_events: bool = False) -> dict:
-        """
-        Converts the simulation logs into a format compatible with timeline visualizations.
 
-        Args:
-            include_events (bool): Whether to include event logs in the visualization (default: False).
-
-        Returns:
-            dict: A dictionary containing 'data' and 'groups' for timeline visualization.
-        """
         data = []
         groups = []
         group_map = {}  # name to group id
@@ -201,3 +146,10 @@ class QSimulationLog(BaseModel):
             process(logs, rep)
 
         return {"data": data, "groups": groups}
+
+    def dump_state(self, QFactory: QFactory) -> dict:
+        return {
+            "factory_state": QFactory.state.model_dump(),
+            "machine_state": [m.state.model_dump() for m in QFactory._actors if m.__class__.__name__ == "QMachine"],
+            "repairman_state": [r.state.model_dump() for r in QFactory._actors if r.__class__.__name__ == "QRepairman"],
+        }

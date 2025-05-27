@@ -147,13 +147,14 @@ class QSimulationLog(BaseModel):
 
         return {"data": data, "groups": groups}
 
-    def dump_state(self, QFactory: QFactory) -> dict:
-        return {
-            "factory_state": QFactory.state.model_dump(),
-            "machine_state": [
-                m.state.model_dump(exclude={"logs"}) for m in QFactory._actors if m.__class__.__name__ == "QMachine"
-            ],
-            "repairman_state": [
-                r.state.model_dump(exclude={"logs"}) for r in QFactory._actors if r.__class__.__name__ == "QRepairman"
-            ],
-        }
+
+def dump_state(QFactory: QFactory) -> dict:
+    return {
+        "factory_state": QFactory.state.model_dump(),
+        "machine_state": [
+            m.state.model_dump(exclude={"logs"}) for m in QFactory._actors if m.__class__.__name__ == "QMachine"
+        ],
+        "repairman_state": [
+            r.state.model_dump(exclude={"logs"}) for r in QFactory._actors if r.__class__.__name__ == "QRepairman"
+        ],
+    }

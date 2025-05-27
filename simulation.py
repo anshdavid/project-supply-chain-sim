@@ -4,7 +4,7 @@ import random
 
 from src.factory import QFactory
 from src.environment import QEnvironment
-from src.logs import QSimulationLog
+from src.logs import QSimulationLog, dump_state
 from src.machine import QMachine
 from src.repairman import QRepairman
 
@@ -51,7 +51,7 @@ def test_factory(duration: int = 36000):
         json.dump(sim_log.viz_dump(log_events=False), f, indent=4)
 
     with open(r"/app/logs/simulation_dump.json", "w", encoding="utf-8") as f:
-        json.dump(sim_log.dump_state(factory), f, indent=4)
+        json.dump(dump_state(factory), f, indent=4)
 
 
 if __name__ == "__main__":

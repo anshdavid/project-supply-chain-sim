@@ -47,7 +47,11 @@ class QMachine:
         mttf: float = Field(description="Mean Time to Failures", gt=0)
         fixed_time_to_produce: bool = Field(description="Use fixed time for production events")
         fixed_time_to_failure: bool = Field(description="Use fixed time for failure events")
-        operation_cost: float = Field(
+
+        idle_cost: float = Field(
+            description="Cost of the machine being idle per time unit, KWpH (kilowatt per hour)", gt=0
+        )
+        working_cost: float = Field(
             description="Cost of operating the machine per time unit working, KWpH (kilowatt per hour)", gt=0
         )
 
@@ -75,12 +79,13 @@ class QMachine:
 
     # fmt: off
     def __init__(
-        self, env: QEnvironment, name: str, state: Literal["idle", "working", "broken", "off"], mean_operation_time: float, sigma_operation_time: float, mttf: float, fixed_time_to_produce: bool, fixed_time_to_failure: bool, operation_cost: float
+        self, env: QEnvironment, name: str, state: Literal["idle", "working", "broken", "off"], mean_operation_time: float, sigma_operation_time: float, mttf: float, fixed_time_to_produce: bool, fixed_time_to_failure: bool, 
+        idle_cost: float, working_cost: float
     ):  # fmt:on
         # fmt:off
         self.state: QMachine.QMachineState = QMachine.QMachineState(
             name=name, state=state, mean_operation_time=mean_operation_time, sigma_operation_time=sigma_operation_time, mttf=mttf, fixed_time_to_produce=fixed_time_to_produce, fixed_time_to_failure=fixed_time_to_failure,
-            operation_cost=operation_cost)  # fmt:on
+            idle_cost=idle_cost, working_cost=working_cost)  # fmt:on
 
         self.state._environment = env
         ttf = calculate_timeout_to_failure(self.state.mttf, fixed_time=self.state.fixed_time_to_failure)

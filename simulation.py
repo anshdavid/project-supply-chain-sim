@@ -9,10 +9,10 @@ from src.machine import QMachine
 from src.repairman import QRepairman
 
 
-def test_factory(duration: int = 36000):
+def test_factory(seed_: int, duration: int = 36000):
 
     # random.seed(87)
-    random.seed(17)
+    random.seed(seed_)
 
     current_datetime = datetime.now(timezone.utc)
     current_time = current_datetime.strftime("%Y-%m-%dT%H:%M:%SZ")
@@ -22,11 +22,11 @@ def test_factory(duration: int = 36000):
     machines = [
         # fmt: off
         QMachine(
-            env=env, name="M1", state="idle", mean_operation_time=600.0, sigma_operation_time=1.0, mttf=1 * 60 * 60, fixed_time_to_produce=True, fixed_time_to_failure=False, operation_cost=100.0),
+            env=env, name="M1", state="idle", mean_operation_time=600.0, sigma_operation_time=1.0, mttf=1 * 60 * 60, fixed_time_to_produce=True, fixed_time_to_failure=False, idle_cost=50, working_cost=100.0),
         QMachine(
-            env=env, name="M2", state="idle", mean_operation_time=300.0, sigma_operation_time=1.0, mttf=1 * 60 * 60, fixed_time_to_produce=True, fixed_time_to_failure=False, operation_cost=200.0),
+            env=env, name="M2", state="idle", mean_operation_time=300.0, sigma_operation_time=1.0, mttf=1 * 60 * 60, fixed_time_to_produce=True, fixed_time_to_failure=False, idle_cost=50, working_cost=200.0),
         QMachine(
-            env=env, name="M3", state="idle", mean_operation_time=60.0, sigma_operation_time=1.0, mttf=1 * 60 * 60, fixed_time_to_produce=True, fixed_time_to_failure=False, operation_cost=300.0),
+            env=env, name="M3", state="idle", mean_operation_time=60.0, sigma_operation_time=1.0, mttf=1 * 60 * 60, fixed_time_to_produce=True, fixed_time_to_failure=False, idle_cost=50, working_cost=300.0),
         # fmt:on
     ]
 
@@ -47,12 +47,16 @@ def test_factory(duration: int = 36000):
     sim_log = QSimulationLog.from_factory(
         launch_timestamp=env.simulation_period, simulation_duration=duration, simulation_runtime=env.now, description="Simulation log", factory=factory)  # fmt:on
 
-    with open(r"/app/logs/viztimeline.json", "w", encoding="utf-8") as f:
+    with open(rf"/app/logs/seed_{seed_}_viztimeline.json", "w", encoding="utf-8") as f:
         json.dump(sim_log.viz_dump(log_events=False), f, indent=4)
 
-    with open(r"/app/logs/simulation_dump.json", "w", encoding="utf-8") as f:
+    with open(rf"/app/logs/seed_{seed_}_simulation_dump.json", "w", encoding="utf-8") as f:
         json.dump(dump_state(factory), f, indent=4)
 
 
 if __name__ == "__main__":
-    test_factory()
+    # test_factory()
+
+    for seed in set(random.sample(range(1, 1001), 10)):
+        print(f"Running factory simulation with seed: {seed}")
+        test_factory(seed, duration=36000)

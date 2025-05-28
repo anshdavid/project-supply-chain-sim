@@ -83,11 +83,10 @@
     <div id="wrapper">
         <h1>QUAESTOR</h1>
         <div id="uploadSection">
-            <label for="fileInput">Upload Log File:</label>
-            <input type="file" id="fileInput" accept=".json" />
+            <label for="fileInput">Upload Log Files:</label>
+            <input type="file" id="fileInput" accept=".json" multiple />
         </div>
         <div id="container">
-            <div id="visualization"></div>
         </div>
     </div>
 
@@ -95,75 +94,95 @@
 
     <script>
         document.getElementById("fileInput").addEventListener("change", function (e) {
-            const file = e.target.files[0];
-            if (!file) return;
+            const files = e.target.files;
+            if (!files || files.length === 0) return;
 
-            const reader = new FileReader();
-            reader.onload = function (event) {
-                let parsed;
-                try {
-                    parsed = JSON.parse(event.target.result);
-                } catch (e) {
-                    alert("Invalid JSON file.");
-                    return;
-                }
-                // Expect parsed to be {data: [...], groups: [...]}
-                if (!parsed.data || !parsed.groups) {
-                    alert("JSON must have 'data' and 'groups' arrays.");
-                    return;
-                }
+            // Remove previous visualizations
+            const container = document.getElementById('container');
+            container.innerHTML = '';
 
-                var items = new vis.DataSet(parsed.data);
-                var groups = new vis.DataSet(parsed.groups);
+            // Store all timelines for syncing
+            const timelines = [];
 
-                var container = document.getElementById('visualization');
+            Array.from(files).forEach((file, idx) => {
+                const reader = new FileReader();
+                reader.onload = function (event) {
+                    let parsed;
+                    try {
+                        parsed = JSON.parse(event.target.result);
+                    } catch (e) {
+                        alert("Invalid JSON file: " + file.name);
+                        return;
+                    }
+                    if (!parsed.data || !parsed.groups) {
+                        alert("JSON must have 'data' and 'groups' arrays in " + file.name);
+                        return;
+                    }
 
-                var options = {
-                    stack: false,
-                    stackSubgroups: false,
-                    // override items
-                    editable: {
-                        add: false,
-                        remove: false,
-                        updateGroup: false,
-                        updateTime: false,
-                        overrideItems: false,
-                    },
-                    // ease of use
-                    groupHeightMode: 'fixed',
-                    //cluster: {
-                    //    showStipes: true,
-                    //},
-                    // progress bar
-                    //xss: {
-                    //    disabled: false,
-                    //    filterOptions: {
-                    //        whiteList: { p: ['class', 'data-from-template'], div: 'class' },
-                    //    },
-                    //},
-                    //visibleFrameTemplate: function (item) {
-                    //    // If the item has a value, use it to create a progress bar
-                    //    if (item.progress) {
-                    //        console.log("item.progress");
-                    //        var percentage = item.progress + '%';
-                    //        // return '<div class="progress-wrapper"><div class="progress" style="width:' + percentage + '"></div></div>';
-                    //        return '<div class="progress-wrapper"><div class="progress" style="width:' + percentage + '"></div><div class="progress-label">&nbsp;Completed ' + percentage + '</div></div>';
-                    //        //return '<div class="progress-wrapper"><label class="progress-label">' + percentage + '<label></div>';
-                    //    }
-                    //
-                    //}
+                    // Create a new div for each timeline
+                    const vizDiv = document.createElement('div');
+                    vizDiv.id = 'visualization_' + idx;
+                    vizDiv.style.marginBottom = '40px';
+                    vizDiv.style.border = '1px solid #ccc';
+                    vizDiv.style.background = '#fafafa';
+                    vizDiv.style.minHeight = '200px';
+                    container.appendChild(vizDiv);
+
+                    // Add a label for the file
+                    const label = document.createElement('div');
+                    label.textContent = file.name;
+                    label.style.fontWeight = 'bold';
+                    label.style.margin = '8px 0';
+                    vizDiv.appendChild(label);
+
+                    // Timeline goes below the label
+                    const timelineDiv = document.createElement('div');
+                    timelineDiv.id = 'timeline_' + idx;
+                    vizDiv.appendChild(timelineDiv);
+
+                    var items = new vis.DataSet(parsed.data);
+                    var groups = new vis.DataSet(parsed.groups);
+
+                    var options = {
+                        stack: false,
+                        stackSubgroups: false,
+                        editable: {
+                            add: false,
+                            remove: false,
+                            updateGroup: false,
+                            updateTime: false,
+                            overrideItems: false,
+                        },
+                        groupHeightMode: 'fixed',
+                    };
+
+                    var timeline = new vis.Timeline(timelineDiv, items, groups, options);
+                    timelines.push(timeline);
+
+                    // Attach sync events after all timelines are created
+                    if (timelines.length === files.length) {
+                        let isSyncing = false;
+                        function syncAllTimelines(source, s, e) {
+                            if (isSyncing) return;
+                            isSyncing = true;
+                            timelines.forEach(tl => {
+                                if (tl !== source) tl.setWindow(s, e, { animation: false });
+                            });
+                            isSyncing = false;
+                        }
+                        timelines.forEach(tl => {
+                            tl.on('rangechange', function (props) {
+                                syncAllTimelines(tl, props.start, props.end);
+                            });
+                            tl.on('rangechanged', function (props) {
+                                syncAllTimelines(tl, props.start, props.end);
+                            });
+                        });
+                    }
                 };
-
-                // Clear previous timeline if any
-                if (window.timeline) {
-                    window.timeline.destroy();
-                }
-                window.timeline = new vis.Timeline(container, items, groups, options);
-            };
-            reader.readAsText(file);
+                reader.readAsText(file);
+            });
         });
-
-
     </script>
 
 
